@@ -1,0 +1,75 @@
+Consignas a realizar del tp, tener en cuenta que un paso importante tambien es
+mejorarla pagina web
+
+Ir tachando las completadas// destacar las en progreso si estoy haciendo un punto
+y lodemas integrantes se concentran en otras
+
+1. Modificar la página principal (index.ejs) para que el buscador busque
+ no solo películas, sino también actores y directores.
+
+
+2. Modificar el backend (app.js) para procesar búsquedas en las tres categorías
+(películas, actores, directores).
+
+3.Crear o modificar la página de resultados (resultado.ejs) para que
+muestre los resultados separados en secciones:
+    Películas
+    Actores
+    Directores
+
+4. Al hacer clic en el nombre de una persona (actor o director) en los resultados,
+ mostrar su página correspondiente:
+    actor.ejs
+    director.ejs
+    Si es una persona es actor/director distinta pagina? otra pagina combinada resolucion personal?
+
+5. En la página de cada persona, listar todas las películas en las que
+participó (como actor o como director).
+
+6. Mejorar la página de película (pelicula.ejs) para mostrar toda
+la información disponible en la base de datos movies.db, incluyendo:
+    Título
+    Género
+    País de producción
+    Año
+    Director
+    Actores
+    Palabras clave, etc.
+    Toda la info posible de una pelicula
+
+7.Crear un buscador de palabras clave (keywords) que
+    devuelva las películas relacionadas con esa palabra.
+8. Crear las páginas:
+  search_keyword.ejs → para escribir la palabra clave
+  resultados_keyword.ejs → para mostrar las películas que coinciden
+
+9.  Crear las tablas SQL necesarias para usuarios y sus películas favoritas:
+    user (campos: user_id, user_username, user_name, user_email)
+    movie_user (para relacionar películas y usuarios, con puntuación y opinión)
+
+10.  Implementar las operaciones CRUD para:
+        Crear, modificar y borrar usuarios.
+        Listar los usuarios.
+        Mostrar las películas que le gustan a cada usuario.
+        Guardar la puntuación y opinión de un usuario sobre una película.
+
+ Registro de actividad (MongoDB)
+
+
+11.   Configurar MongoDB y crear una colección user_activity.
+
+12.Registrar los tres tipos de eventos de actividad:
+    "RATED_MOVIE" → cuando el usuario califica una película.
+    "WROTE_REVIEW" → cuando el usuario escribe una reseña.
+    "ADDED_TO_FAVORITES" → cuando agrega una película a favoritos.
+13. Crear una página de perfil de usuario (perfil.ejs o similar) que muestre un
+  timeline/feed de actividad reciente.
+
+14. Implementar las consultas a MongoDB para mostrar el timeline ordenado por fecha.
+
+Entrega
+Comprimir el proyecto completo en un archivo:
+GrupoX-Movieweb.zip
+Incluir un archivo GrupoX-Movieweb.txt o .pdf con:
+Nombres de los integrantes del grupo
+Cualquier comentario o detalle adicional
