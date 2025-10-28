@@ -42,12 +42,12 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
 
     // Los placeholders en pg son $1, $2, etc.
     const mov = 'SELECT * FROM movie WHERE title ILIKE $1'; // ILIKE es case-insensitive en Postgres
-    const act = `SELECT DISTINCT p.person_name
-        FROM movie_cast mc
-        JOIN movies.person p ON mc.person_id = p.person_id
+    const act = `SELECT DISTINCT p.person_name, p.person_id
+        FROM person p
+        JOIN movies.movie_cast mc ON mc.person_id = p.person_id
         WHERE p.person_name ILIKE $1`;
 
-    const dir = `SELECT DISTINCT p.person_name
+    const dir = `SELECT DISTINCT p.person_name, p.person_id
         FROM movies.movie_crew mc
         JOIN movies.person p ON mc.person_id = p.person_id
         WHERE mc.job = 'Director' AND p.person_name ILIKE $1`;
