@@ -11,6 +11,7 @@ const express = require('express');
 
 const { Pool } = require('pg');
 
+// contruccion de la pagina con express
 const app = express();
 const port = process.env.PORT || 3500;
 
@@ -40,13 +41,34 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
     const searchTerm = req.query.q;
 
     // Los placeholders en pg son $1, $2, etc.
-    const query = 'SELECT * FROM movie WHERE title ILIKE $1'; // ILIKE es case-insensitive en Postgres
+    const mov = 'SELECT * FROM movie WHERE title ILIKE $1'; // ILIKE es case-insensitive en Postgres
+    const act = `SELECT DISTINCT p.person_name
+        FROM movie_cast mc
+        JOIN movies.person p ON mc.person_id = p.person_id
+        WHERE p.person_name ILIKE $1`;
+
+    const dir = `SELECT DISTINCT p.person_name
+        FROM movies.movie_crew mc
+        JOIN movies.person p ON mc.person_id = p.person_id
+        WHERE mc.job = 'Director' AND p.person_name ILIKE $1`;
+
     const values = [`%${searchTerm}%`];
+
 
     try {
         // Usar db.query que devuelve una promesa y acceder a .rows
-        const result = await db.query(query, values);
-        res.render('resultado', { movies: result.rows });
+        const movies = await db.query(mov, values);
+        const actors = await db.query(act, values);
+        const directors = await db.query(dir, values);
+
+
+        // le paso al express de pagina resultado los resultados que voy teniendo
+        res.render('resultado', {
+            movies: movies.rows,
+            actors: actors.rows,
+            directors: directors.rows,
+        });
+
     } catch (err) {
         console.error(err);
         res.status(500).send('Error en la búsqueda.');

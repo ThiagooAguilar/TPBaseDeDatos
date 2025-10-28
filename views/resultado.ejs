@@ -6,8 +6,10 @@
 </head>
 <body>
 <h1>Resultado de la Búsqueda</h1>
+
+<h2>Películas</h2>
 <% if (movies.length === 0) { %>
-    <p>No hay resultados.</p>
+    <p>No se encontraron películas.</p>
 <% } else { %>
     <ul>
         <% movies.forEach((movie) => { %>
@@ -15,7 +17,29 @@
         <% }); %>
     </ul>
 <% } %>
-<p></p>
+
+<h2>Actores</h2>
+<% if (actors.length === 0) { %>
+    <p>No se encontraron actores.</p>
+<% } else { %>
+    <ul>
+        <% actors.forEach((actor) => { %>
+            <li><a href="/actor/<%= actor.person_id %>"><%= actor.person_name %></a></li>
+        <% }); %>
+    </ul>
+<% } %>
+
+<h2>Directores</h2>
+<% if (directors.length === 0) { %>
+    <p>No se encontraron directores.</p>
+<% } else { %>
+    <ul>
+        <% directors.forEach((director) => { %>
+            <li><a href="/director/<%= director.person_id %>"><%= director.person_name %></a></li>
+        <% }); %>
+    </ul>
+<% } %>
+
 <div id="inicio"><a href="/">Inicio</a></div>
 </body>
 </html>
