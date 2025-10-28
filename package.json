@@ -4,15 +4,24 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "tailwind:init": "node ./node_modules/tailwindcss/lib/cli.js init -p",
+    "tailwind:build": "node ./node_modules/tailwindcss/lib/cli.js -i ./src/styles.css -o ./public/styles.css --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "daisyui": "^5.3.8",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.3.3",
+    "postcss": "^8.4.36",
+    "autoprefixer": "^10.4.14",
+    "daisyui": "^3.6.0"
   }
 }

@@ -1,9 +1,3 @@
-// Se debe crear archivo .env con las variables de entorno de la base de datos
-// DB_USER=postgres
-// DB_PASSWORD=<password_de_la_base_de_datos>
-// DB_HOST=localhost
-// DB_PORT=5432
-// DB_DATABASE=movies
 
 require('dotenv').config();
 
