@@ -11,6 +11,8 @@ const port = process.env.PORT || 3500;
 
 // Serve static files from the "views" directory
 app.use(express.static('views'));
+app.use(express.static('public'));
+
 
 // Crear un "pool" de conexiones a PostgreSQL usando las variables de entorno
 const db = new Pool({
