@@ -34,10 +34,56 @@
     </form>
 
     <!-- CONTENIDO PRINCIPAL -->
-    <div id="contenido-principal">
-        <p>Resultados o contenido principal aparecerá aquí.</p>
-    </div>
-  </div>
+    <div id="contenido-principal" class="w-full max-w-7xl px-4 py-8">
+
+            <div class="tabs tabs-boxed mb-6 justify-center bg-gray-900">
+                <a class="tab tab-lg text-[#7F00FF] tab-active">En Tendencia</a>
+                <a class="tab tab-lg text-white">Mejor Calificadas</a>
+                <a class="tab tab-lg text-white">Próximos Estrenos</a>
+            </div>
+
+            <h2 class="text-3xl text-white font-bold mb-4 ml-2 border-l-4 border-[#7F00FF] pl-3">🔥 Películas en Tendencia</h2>
+
+            <% if (trendingMovies && trendingMovies.length > 0) { %>
+                <div class="flex overflow-x-auto space-x-6 pb-4 scrollbar-hide"> <% trendingMovies.forEach((movie) => { %>
+                        <div class="card bg-[#222] w-64 shadow-xl flex-shrink-0 hover:scale-[1.03] transition duration-300">
+                            <figure class="h-96">
+                                <img src="<%= movie.poster_url %>" alt="<%= movie.title %>" class="h-full w-full object-cover"/>
+                            </figure>
+                            <div class="card-body p-4">
+                                <h2 class="card-title text-white text-lg truncate"><%= movie.title %></h2>
+                                <div class="badge badge-warning text-sm font-bold">⭐ <%= movie.rating || 'N/A' %></div>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <p class="ml-2 text-gray-400">Cargando o no hay datos de películas en tendencia.</p>
+            <% } %>
+
+            <div class="divider my-8"></div>
+
+            <h2 class="text-3xl text-white font-bold mb-4 ml-2 border-l-4 border-[#7F00FF] pl-3">🌟 Mejor Calificadas</h2>
+
+            <% if (topRatedMovies && topRatedMovies.length > 0) { %>
+                <div class="flex overflow-x-auto space-x-6 pb-4 scrollbar-hide">
+                    <% topRatedMovies.forEach((movie) => { %>
+                        <div class="card bg-[#222] w-64 shadow-xl flex-shrink-0 hover:scale-[1.03] transition duration-300">
+                            <figure class="h-96">
+                                <img src="<%= movie.poster_url %>" alt="<%= movie.title %>" class="h-full w-full object-cover"/>
+                            </figure>
+                            <div class="card-body p-4">
+                                <h2 class="card-title text-white text-lg truncate"><%= movie.title %></h2>
+                                <div class="badge badge-warning text-sm font-bold">⭐ <%= movie.rating || 'N/A' %></div>
+                            </div>
+                        </div>
+                    <% }) %>
+                </div>
+            <% } else { %>
+                <p class="ml-2 text-gray-400">Cargando o no hay datos de películas mejor calificadas.</p>
+            <% } %>
+
+        </div>
 
   <!-- SIDEBAR -->
   <div class="drawer-side">
