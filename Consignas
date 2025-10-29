@@ -39,6 +39,7 @@ la información disponible en la base de datos movies.db, incluyendo:
 
 7.Crear un buscador de palabras clave (keywords) que
     devuelva las películas relacionadas con esa palabra.
+
 8. Crear las páginas:
   search_keyword.ejs → para escribir la palabra clave
   resultados_keyword.ejs → para mostrar las películas que coinciden
@@ -62,6 +63,7 @@ la información disponible en la base de datos movies.db, incluyendo:
     "RATED_MOVIE" → cuando el usuario califica una película.
     "WROTE_REVIEW" → cuando el usuario escribe una reseña.
     "ADDED_TO_FAVORITES" → cuando agrega una película a favoritos.
+
 13. Crear una página de perfil de usuario (perfil.ejs o similar) que muestre un
   timeline/feed de actividad reciente.
 

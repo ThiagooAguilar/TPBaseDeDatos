@@ -46,7 +46,16 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
         JOIN movies.person p ON mc.person_id = p.person_id
         WHERE mc.job = 'Director' AND p.person_name ILIKE $1`;
 
-    const values = [`%${searchTerm}%`];
+    const key = `WITH keyword_in_movie_table AS (SELECT DISTINCT m.*, k.keyword_name
+    FROM movie m
+    LEFT JOIN movie_keywords mk ON m.movie_id = mk.movie_id
+    LEFT JOIN keyword k ON mk.keyword_id = k.keyword_id)
+
+    SELECT *
+    FROM keyword_in_movie_table
+    WHERE keyword_name ILIKE $1`;
+
+        const values = [`%${searchTerm}%`];
 
 
     try {
@@ -54,11 +63,18 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
         const movies = await db.query(mov, values);
         const actors = await db.query(act, values);
         const directors = await db.query(dir, values);
+        const keys = await db.query(key,values);
+        // elimino la posible duplicacion de keys y movies
+        const combined = [...movies.rows, ...keys.rows];
+        const uniqueMovies = Array.from(
+            new Map(combined.map(m => [m.movie_id, m])).values()
+        );
 
 
         // le paso al express de pagina resultado los resultados que voy teniendo
         res.render('resultado', {
-            movies: movies.rows,
+            movies: uniqueMovies,
+            keys: keys.rows,
             actors: actors.rows,
             directors: directors.rows,
         });
@@ -68,6 +84,39 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
         res.status(500).send('Error en la búsqueda.');
     }
 });
+app.get('/search_keyword', (req, res) => {
+    res.render('search_keyword');
+});
+
+
+app.get('/buscarpalabras', async (req, res) => {
+    const searchTerm = req.query.q;
+    const key = `SELECT DISTINCT ON (m.movie_id) m.movie_id, m.title
+                 FROM movie m
+                     LEFT JOIN movie_keywords mk ON m.movie_id = mk.movie_id
+                     LEFT JOIN keyword k ON mk.keyword_id = k.keyword_id
+                 WHERE k.keyword_name ILIKE $1`;
+
+    const values = [`%${searchTerm}%`];
+    try {
+        // Usar db.query que devuelve una promesa y acceder a .rows
+        const keys = await db.query(key,values);
+
+
+
+        // le paso al express de pagina resultado los resultados que voy teniendo
+        res.render('resultados_keyword', {
+            keys: keys.rows,
+            searchTerm
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Error en la búsqueda.');
+    }
+
+
+})
 
 // Ruta para la página de datos de una película particular (PostgreSQL)
 app.get('/pelicula/:id', async (req, res) => { // Convertir a async

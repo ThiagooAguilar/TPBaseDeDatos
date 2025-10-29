@@ -8,13 +8,14 @@
 <h1>Resultado de la Búsqueda</h1>
 
 <h2>Películas</h2>
-<% if (movies.length === 0) { %>
+
+<% if (movies.length === 0 ) { %>
     <p>No se encontraron películas.</p>
 <% } else { %>
     <ul>
-        <% movies.forEach((movie) => { %>
-            <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %></a></li>
-        <% }); %>
+            <% movies.forEach((movie) => { %>
+                <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %></a></li>
+            <% }) %>
     </ul>
 <% } %>
 

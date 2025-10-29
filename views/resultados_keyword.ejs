@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Resultados</title>
+</head>
+<body>
+<h1>Resultados de la búsqueda</h1>
+
+<% if (keys.length === 0) { %>
+    <p>No se encontraron resultados.</p>
+<% } else { %>
+    <ul>
+        <% keys.forEach(movie => { %>
+            <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %></a></li>
+        <% }) %>
+    </ul>
+<% } %>
+
+</body>
+</html>
