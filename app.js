@@ -28,9 +28,44 @@ const db = new Pool({
 app.set('view engine', 'ejs');
 
 // Ruta para la página de inicio
-app.get('/', (req, res) => {
-    res.render('index');
-});
+app.get('/', async (req, res) => {
+    try {
+        const topRatedQuery = `
+            SELECT movie_id, title, poster_url, vote_average
+            FROM movie
+            WHERE poster_url IS NOT NULL
+            ORDER BY vote_average DESC, vote_count DESC
+            LIMIT 20;
+        `;
+
+
+        const recentQuery = `
+            SELECT movie_id, title, poster_url, vote_average
+            FROM movie
+            WHERE poster_url IS NOT NULL
+            ORDER BY release_date DESC
+            LIMIT 20;
+        `;
+
+        const topRatedResult = await db.query(topRatedQuery);
+        const recentResult = await db.query(recentQuery);
+        const topRatedMovies = topRatedResult.rows;
+        const trendingMovies = recentResult.rows;
+        res.render('index', {
+            trendingMovies: trendingMovies,
+            topRatedMovies: topRatedMovies
+        });
+
+    } catch (err) {
+        console.error('Error al cargar datos de inicio:', err);
+        res.render('index', {
+            trendingMovies: [],
+            topRatedMovies: []
+        });
+    }
+}
+
+);
 
 // Ruta para buscar películas en la base de datos PostgreSQL
 app.get('/buscar', async (req, res) => { // 4. Convertir a función async
