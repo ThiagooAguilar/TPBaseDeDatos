@@ -2,17 +2,21 @@ require('dotenv').config();
 
 const express = require('express');
 const connectMongo = require('./mongodb/connectMongo');
+const userActivityRoutes = require('./mongodb/userActivity.route');
 const { Pool } = require('pg');
 
 // contruccion de la pagina con express
 const app = express();
 const port = process.env.PORT || 3500;
+
 connectMongo();
 
 // Serve static files from the "views" directory
 app.use(express.static('views'));
 app.use(express.static('public'));
 
+// Usar rutas mongo
+app.use('/activity', userActivityRoutes);
 
 // Crear un "pool" de conexiones a PostgreSQL usando las variables de entorno
 const db = new Pool({
