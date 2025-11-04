@@ -1,8 +1,7 @@
-
 require('dotenv').config();
 
 const express = require('express');
-const connectMongo = require('./connectMongo');
+const connectMongo = require('./mongodb/connectMongo');
 const { Pool } = require('pg');
 
 // contruccion de la pagina con express
