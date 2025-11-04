@@ -2,8 +2,9 @@
   "name": "movieweb",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tailwind:init": "node ./node_modules/tailwindcss/lib/cli.js init -p",
     "tailwind:build": "node ./node_modules/tailwindcss/lib/cli.js -i ./src/styles.css -o ./public/styles.css --watch"
@@ -16,12 +17,13 @@
     "dotenv": "^16.4.5",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
+    "mongoose": "^8.19.2",
     "pg": "^8.16.3"
   },
   "devDependencies": {
-    "tailwindcss": "^3.3.3",
-    "postcss": "^8.4.36",
     "autoprefixer": "^10.4.14",
-    "daisyui": "^3.6.0"
+    "daisyui": "^3.6.0",
+    "postcss": "^8.4.36",
+    "tailwindcss": "^3.3.3"
   }
 }
