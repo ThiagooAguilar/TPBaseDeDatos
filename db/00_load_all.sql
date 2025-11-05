@@ -50,4 +50,10 @@
 \echo '\n12. Loading production_country table...'
 \i 12_production_country.sql
 
+\echo '\n13. Loading user table...'
+\i 13_user.sql
+
+\echo '\n14. Loading movie_user table...'
+\i 14_movie_user.sql
+
 \echo '\n--- Database setup complete! ---'
