@@ -14,6 +14,7 @@ connectMongo();
 // Serve static files from the "views" directory
 app.use(express.static('views'));
 app.use(express.static('public'));
+app.use(express.json());
 
 // Usar rutas mongo
 app.use('/activity', userActivityRoutes);
@@ -318,6 +319,102 @@ app.get('/director/:id', async (req, res) => {
     }
 });
 
+// Crear usuario
+app.post('/usuarios', async (req, res) => {
+  try {
+    const { user_username, user_name, user_email } = req.body;
+    const query = `
+      INSERT INTO movies."user"
+        (user_username, user_name, user_email)
+      VALUES ($1, $2, $3)
+      RETURNING *;
+    `;
+    const result = await db.query(query, [user_username, user_name, user_email]);
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener todos los usuarios
+app.get('/usuarios', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT * 
+      FROM movies."user"
+      ORDER BY user_id;
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Borrar usuario
+app.delete('/usuarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      DELETE
+      FROM movies."user"
+      WHERE user_id = $1
+      RETURNING *;
+    `, [id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    res.json({ mensaje: 'Usuario eliminado', usuario: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Modificar usuario
+app.put('/usuarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user_username, user_name, user_email } = req.body;
+    if (!user_username && !user_name && !user_email) {
+      return res.status(400).json({ error: 'Debe enviar al menos un campo para actualizar.' });
+    }
+    let set = [];
+    let values = [];
+    let i = 1;
+
+    if (user_username) {
+      set.push(`user_username = $${i++}`);
+      values.push(user_username);
+    }
+    if (user_name) {
+      set.push(`user_name = $${i++}`);
+      values.push(user_name);
+    }
+    if (user_email) {
+      set.push(`user_email = $${i++}`);
+      values.push(user_email);
+    }
+
+    values.push(id);
+
+    const query = `
+      UPDATE movies."user"
+      SET ${set.join(', ')}
+      WHERE user_id = $${values.length}
+      RETURNING *;
+    `;
+
+    const result = await db.query(query, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ mensaje: 'Usuario actualizado', usuario: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.listen(port, () => {
     console.log(`Servidor en ejecución en http://localhost:${port}`);
