@@ -100,34 +100,31 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     const { identifier, user_password } = req.body;
 
-    // 🔍 DEBUGGING: Muestra los datos recibidos
+    // --- DEBUGGING ---
     console.log('--- INTENTO DE LOGIN ---');
     console.log('Identificador recibido:', identifier);
-    console.log('Contraseña recibida (sin hash):', user_password);
 
     try {
+        // 🚀 CORRECCIÓN: Usar ILIKE para la búsqueda insensible a mayúsculas/minúsculas
         const result = await db.query(`
             SELECT user_id, user_password_hash
             FROM public."user"
-            WHERE user_username = $1 OR user_email = $1;
+            WHERE user_username ILIKE $1 OR user_email ILIKE $1;
         `, [identifier]);
 
         const user = result.rows[0];
 
-        // 🔍 DEBUGGING: Muestra si el usuario fue encontrado y su hash
+        // --- DEBUGGING ---
         if (user) {
             console.log('Usuario encontrado. ID:', user.user_id);
-            console.log('Hash de contraseña en DB:', user.user_password_hash);
         } else {
-            console.log('Usuario NO encontrado en la DB.');
+            console.log('Usuario NO encontrado en la DB (Verificar mayúsculas/minúsculas).');
             req.session.error = 'Credenciales inválidas.';
             return res.redirect('/login');
         }
 
-        // Si el usuario existe, comparamos la contraseña
+        // El resto del código funciona solo si 'user' es encontrado
         const isMatch = await bcrypt.compare(user_password, user.user_password_hash);
-
-        // 🔍 DEBUGGING: Muestra el resultado de la comparación
         console.log('Resultado de bcrypt.compare:', isMatch);
 
         if (isMatch) {
@@ -140,12 +137,11 @@ app.post('/login', async (req, res) => {
         res.redirect('/login');
 
     } catch (err) {
-        console.error('Error en la ruta /login:', err); // Mostrar el error completo
+        console.error('Error en la ruta /login:', err);
         req.session.error = 'Error en el servidor.';
         res.redirect('/login');
     }
 });
-
 // Logout
 app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login'));
