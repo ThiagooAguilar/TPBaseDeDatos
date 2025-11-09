@@ -27,14 +27,17 @@ class UserActivityController {
         try {
         // saca los datos de la URL
         const { userId } = req.params;
-        const { limit } = req.query;
+        // lee 'page' y 'limit' del query string (la URL)
+        // si no vienen, usa valores por defecto: página 1, límite 20.
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
 
         if (!userId) {
             return res.status(400).json({ error: "Falta el parámetro userId" });
         }
 
         // llama al servicio
-        const activities = await UserActivityService.getUserActivity(userId, limit);
+        const activities = await UserActivityService.getUserActivity(userId, page, limit);
 
         if (!activities || activities.length === 0) {
             return res.status(404).json({ message: "No se encontró actividad para este usuario" });
