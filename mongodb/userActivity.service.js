@@ -18,13 +18,16 @@ class UserActivityService {
         }
     }
 
-    static async getUserActivity(userId, limit = 20) {
-        try {
+    static async getUserActivity(userId, page = 1, limit = 20) {        try {
+            // calcula cuántos documentos "saltar" (skip)
+            // ej: (página 1 - 1) * 20 = 0 (no saltar)
+            // ej: (página 2 - 1) * 20 = 20 (saltar los primeros 20)
+            const skipAmount = (page - 1) * limit;
             // buscar, ordenar y limitar
             const activities = await UserActivity.find({ userId: userId }) // Filtro
                 .sort({ timestamp: -1 }) // ordenar por fecha (más reciente primero)
-                .limit(limit);           // limitar cantidad
-
+                .skip(skipAmount)   // la clave de la paginación
+                .limit(limit);      // aplicar el límite
             // return la lista
             return activities;
         } catch (error) {
