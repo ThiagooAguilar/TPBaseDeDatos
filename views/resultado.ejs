@@ -1,46 +1,60 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
     <title>Resultado de la Búsqueda</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
-<h1>Resultado de la Búsqueda</h1>
+<body class="bg-[#111] text-white font-['Roboto']">
 
-<h2>Películas</h2>
+<h1 class="text-4xl text-[#7F00FF] text-center my-6">Resultado de la Búsqueda</h1>
 
-<% if (movies.length === 0 ) { %>
-    <p>No se encontraron películas.</p>
+<h2 class="text-2xl text-white my-4 ml-4">Películas</h2>
+
+<% if (movies.length === 0) { %>
+    <p class="ml-4">No se encontraron películas.</p>
 <% } else { %>
-    <ul>
-            <% movies.forEach((movie) => { %>
-                <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %></a></li>
-            <% }) %>
-    </ul>
-<% } %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 px-4 pb-4">
+        <% movies.forEach((movie) => { %>
+            <div class="card bg-[#222] shadow-md">
+                <figure>
+                    <img src="<%= movie.poster_url %>" alt="<%= movie.title %>" class="h-96 w-full object-cover"/>
+                </figure>
+                <div class="card-body p-3">
+                    <h2 class="card-title text-[#7F00FF] text-lg"><%= movie.title %></h2>
+                    <p class="text-yellow-400 font-bold">Rating: <%= movie.rating || 'N/A' %></p>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+    <% } %>
 
-<h2>Actores</h2>
+<h2 class="text-2xl text-white my-4 ml-4">Actores</h2>
 <% if (actors.length === 0) { %>
-    <p>No se encontraron actores.</p>
+    <p class="ml-4">No se encontraron actores.</p>
 <% } else { %>
-    <ul>
+    <ul class="ml-4 list-disc">
         <% actors.forEach((actor) => { %>
-            <li><a href="/actor/<%= actor.person_id %>"><%= actor.person_name %></a></li>
+            <li><a href="/actor/<%= actor.person_id %>" class="text-[#7F00FF] hover:text-yellow-400"><%= actor.person_name %></a></li>
         <% }); %>
     </ul>
 <% } %>
 
-<h2>Directores</h2>
+<h2 class="text-2xl text-white my-4 ml-4">Directores</h2>
 <% if (directors.length === 0) { %>
-    <p>No se encontraron directores.</p>
+    <p class="ml-4">No se encontraron directores.</p>
 <% } else { %>
-    <ul>
+    <ul class="ml-4 list-disc">
         <% directors.forEach((director) => { %>
-            <li><a href="/director/<%= director.person_id %>"><%= director.person_name %></a></li>
+            <li><a href="/director/<%= director.person_id %>" class="text-[#7F00FF] hover:text-yellow-400"><%= director.person_name %></a></li>
         <% }); %>
     </ul>
 <% } %>
 
-<div id="inicio"><a href="/">Inicio</a></div>
+<div id="inicio" class="mt-6 ml-4">
+    <a href="/" class="btn btn-primary">Inicio</a>
+</div>
+
 </body>
 </html>
