@@ -1,0 +1,41 @@
+<h2 style="margin-top: 30px;">Actividad reciente</h2>
+
+<% if (activity && activity.length > 0) { %>
+
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+        <% activity.forEach(a => { %>
+
+            <div style="
+          background: #1b1b1b;
+          color: #ddd;
+          padding: 15px;
+          border-radius: 8px;
+          border: 1px solid #333;
+        ">
+
+                <!-- Mensaje dinámico según tipo -->
+                <% if (a.type === 'RATED_MOVIE') { %>
+                    <strong>⭐ Calificó una película:</strong>
+                    <div><%= a.details.title %> — <%= a.details.rating %>/10</div>
+
+                <% } else if (a.type === 'WROTE_REVIEW') { %>
+                    <strong>📝 Escribió una reseña:</strong>
+                    <div><%= a.details.title %></div>
+                    <small>"<%= a.details.review %>"</small>
+
+                <% } else if (a.type === 'ADDED_TO_FAVORITES') { %>
+                    <strong>❤️ Agregó a Favoritos:</strong>
+                    <div><%= a.details.title %></div>
+                <% } %>
+
+                <div style="margin-top: 8px; font-size: 12px; color: #aaa;">
+                    <%= new Date(a.createdAt).toLocaleString() %>
+                </div>
+            </div>
+
+        <% }) %>
+    </div>
+
+<% } else { %>
+    <p>No hay actividad registrada aún.</p>
+<% } %>

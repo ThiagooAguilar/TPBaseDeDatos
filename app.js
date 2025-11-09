@@ -4,6 +4,9 @@ const express = require('express');
 const connectMongo = require('./mongodb/connectMongo');
 const userActivityRoutes = require('./mongodb/userActivity.route');
 const { Pool } = require('pg');
+// Dependencias para Autenticación
+const bcrypt = require('bcrypt');
+const session = require('express-session');
 
 // contruccion de la pagina con express
 const app = express();
@@ -16,109 +19,214 @@ app.use(express.static('views'));
 app.use(express.static('public'));
 app.use(express.json());
 
-// Usar rutas mongo
+// ⚠️ CORRECCIÓN CLAVE: Añadir middleware para parsear formularios tradicionales
+app.use(express.urlencoded({ extended: true }));
+
+// Configurar middleware de sesión
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'mi-clave-secreta-muy-segura-reemplazar',
+    resave: false,
+    saveUninitialized: false,
+    cookie: { maxAge: 1000 * 60 * 60 * 24 }
+}));
+
 app.use('/activity', userActivityRoutes);
 
-// Crear un "pool" de conexiones a PostgreSQL usando las variables de entorno
+// Conexión a PostgreSQL
 const db = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_DATABASE,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    options: `-c search_path=movies,public`, //modificar options de acuerdo al nombre del esquema
 });
 
-// Configurar el motor de plantillas EJS
+// Motor de plantillas
 app.set('view engine', 'ejs');
 
-// Ruta para la página de inicio
+const isAuthenticated = (req, res, next) => {
+    if (req.session.userId) next();
+    else res.redirect('/login');
+};
+
+/* =========================
+    RUTAS DE AUTENTICACIÓN
+========================= */
+
+// GET Registro
+app.get('/register', (req, res) => {
+    if (req.session.userId) return res.redirect('/');
+    res.render('register', { error: req.session.error });
+    req.session.error = null;
+});
+
+// POST Registro
+app.post('/register', async (req, res) => {
+    const { user_username, user_name, user_email, user_password } = req.body;
+
+    if (!user_username || !user_name || !user_email || !user_password) {
+        req.session.error = 'Todos los campos son obligatorios.';
+        return res.redirect('/register');
+    }
+
+    try {
+        const hash = await bcrypt.hash(user_password, 10);
+
+        const result = await db.query(`
+            INSERT INTO public."user" (user_username, user_name, user_email, user_password_hash)
+            VALUES ($1, $2, $3, $4)
+                RETURNING user_id;
+        `, [user_username, user_name, user_email, hash]);
+
+        req.session.userId = result.rows[0].user_id;
+        res.redirect('/');
+
+    } catch (err) {
+        let errorMessage = 'Error al intentar registrar.';
+        if (err.code === '23505') errorMessage = 'Usuario o email ya existe.';
+        req.session.error = errorMessage;
+        res.redirect('/register');
+    }
+});
+
+// GET Login
+app.get('/login', (req, res) => {
+    if (req.session.userId) return res.redirect('/');
+    res.render('login', { error: req.session.error });
+    req.session.error = null;
+});
+
+// POST Login
+app.post('/login', async (req, res) => {
+    const { identifier, user_password } = req.body;
+
+    // 🔍 DEBUGGING: Muestra los datos recibidos
+    console.log('--- INTENTO DE LOGIN ---');
+    console.log('Identificador recibido:', identifier);
+    console.log('Contraseña recibida (sin hash):', user_password);
+
+    try {
+        const result = await db.query(`
+            SELECT user_id, user_password_hash
+            FROM public."user"
+            WHERE user_username = $1 OR user_email = $1;
+        `, [identifier]);
+
+        const user = result.rows[0];
+
+        // 🔍 DEBUGGING: Muestra si el usuario fue encontrado y su hash
+        if (user) {
+            console.log('Usuario encontrado. ID:', user.user_id);
+            console.log('Hash de contraseña en DB:', user.user_password_hash);
+        } else {
+            console.log('Usuario NO encontrado en la DB.');
+            req.session.error = 'Credenciales inválidas.';
+            return res.redirect('/login');
+        }
+
+        // Si el usuario existe, comparamos la contraseña
+        const isMatch = await bcrypt.compare(user_password, user.user_password_hash);
+
+        // 🔍 DEBUGGING: Muestra el resultado de la comparación
+        console.log('Resultado de bcrypt.compare:', isMatch);
+
+        if (isMatch) {
+            req.session.userId = user.user_id;
+            console.log('Login exitoso.');
+            return res.redirect('/');
+        }
+
+        req.session.error = 'Credenciales inválidas.';
+        res.redirect('/login');
+
+    } catch (err) {
+        console.error('Error en la ruta /login:', err); // Mostrar el error completo
+        req.session.error = 'Error en el servidor.';
+        res.redirect('/login');
+    }
+});
+
+// Logout
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => res.redirect('/login'));
+});
+
+/* =========================
+       RUTAS PRINCIPALES
+========================= */
+
 app.get('/', async (req, res) => {
     try {
-        const topRatedQuery = `
+        const topRated = await db.query(`
             SELECT movie_id, title, poster_url, vote_average
-            FROM movie
+            FROM movies.movie
             WHERE poster_url IS NOT NULL
             ORDER BY vote_average DESC, vote_count DESC
-            LIMIT 20;
-        `;
+                LIMIT 20;
+        `);
 
-
-        const recentQuery = `
+        const recent = await db.query(`
             SELECT movie_id, title, poster_url, vote_average
-            FROM movie
+            FROM movies.movie
             WHERE poster_url IS NOT NULL
             ORDER BY release_date DESC
-            LIMIT 20;
-        `;
+                LIMIT 20;
+        `);
 
-        const topRatedResult = await db.query(topRatedQuery);
-        const recentResult = await db.query(recentQuery);
-        const topRatedMovies = topRatedResult.rows;
-        const trendingMovies = recentResult.rows;
         res.render('index', {
-            trendingMovies: trendingMovies,
-            topRatedMovies: topRatedMovies
+            trendingMovies: recent.rows,
+            topRatedMovies: topRated.rows,
+            userId: req.session.userId
         });
 
     } catch (err) {
-        console.error('Error al cargar datos de inicio:', err);
-        res.render('index', {
-            trendingMovies: [],
-            topRatedMovies: []
-        });
+        console.error(err);
+        res.render('index', { trendingMovies: [], topRatedMovies: [], userId: req.session.userId });
     }
-}
+});
 
-);
-
-// Ruta para buscar películas en la base de datos PostgreSQL
-app.get('/buscar', async (req, res) => { // 4. Convertir a función async
-    const searchTerm = req.query.q;
-
-    // Los placeholders en pg son $1, $2, etc.
-    const mov = 'SELECT * FROM movie WHERE title ILIKE $1'; // ILIKE es case-insensitive en Postgres
-    const act = `SELECT DISTINCT p.person_name, p.person_id
-        FROM person p
-        JOIN movies.movie_cast mc ON mc.person_id = p.person_id
-        WHERE p.person_name ILIKE $1`;
-
-    const dir = `SELECT DISTINCT p.person_name, p.person_id
-        FROM movies.movie_crew mc
-        JOIN movies.person p ON mc.person_id = p.person_id
-        WHERE mc.job = 'Director' AND p.person_name ILIKE $1`;
-
-    const key = `WITH keyword_in_movie_table AS (SELECT DISTINCT m.*, k.keyword_name
-    FROM movie m
-    LEFT JOIN movie_keywords mk ON m.movie_id = mk.movie_id
-    LEFT JOIN keyword k ON mk.keyword_id = k.keyword_id)
-
-    SELECT *
-    FROM keyword_in_movie_table
-    WHERE keyword_name ILIKE $1`;
-
-        const values = [`%${searchTerm}%`];
-
+// BUSCAR
+app.get('/buscar', async (req, res) => {
+    const searchTerm = `%${req.query.q}%`;
 
     try {
-        // Usar db.query que devuelve una promesa y acceder a .rows
-        const movies = await db.query(mov, values);
-        const actors = await db.query(act, values);
-        const directors = await db.query(dir, values);
-        const keys = await db.query(key,values);
-        // elimino la posible duplicacion de keys y movies
+        const movies = await db.query(`
+            SELECT * FROM movies.movie WHERE title ILIKE $1;
+        `, [searchTerm]);
+
+        const actors = await db.query(`
+            SELECT DISTINCT p.person_name, p.person_id
+            FROM movies.person p
+                     JOIN movies.movie_cast mc ON mc.person_id = p.person_id
+            WHERE p.person_name ILIKE $1;
+        `, [searchTerm]);
+
+        const directors = await db.query(`
+            SELECT DISTINCT p.person_name, p.person_id
+            FROM movies.movie_crew mc
+                     JOIN movies.person p ON mc.person_id = p.person_id
+            WHERE mc.job = 'Director' AND p.person_name ILIKE $1;
+        `, [searchTerm]);
+
+        const keys = await db.query(`
+            WITH keyword_in_movie AS (
+                SELECT DISTINCT m.*, k.keyword_name
+                FROM movies.movie m
+                         LEFT JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
+                         LEFT JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
+            )
+            SELECT * FROM keyword_in_movie WHERE keyword_name ILIKE $1;
+        `, [searchTerm]);
+
         const combined = [...movies.rows, ...keys.rows];
-        const uniqueMovies = Array.from(
-            new Map(combined.map(m => [m.movie_id, m])).values()
-        );
+        const unique = Array.from(new Map(combined.map(m => [m.movie_id, m])).values());
 
-
-        // le paso al express de pagina resultado los resultados que voy teniendo
         res.render('resultado', {
-            movies: uniqueMovies,
+            movies: unique,
             keys: keys.rows,
             actors: actors.rows,
             directors: directors.rows,
+            userId: req.session.userId
         });
 
     } catch (err) {
@@ -126,296 +234,165 @@ app.get('/buscar', async (req, res) => { // 4. Convertir a función async
         res.status(500).send('Error en la búsqueda.');
     }
 });
-app.get('/search_keyword', (req, res) => {
-    res.render('search_keyword');
-});
 
-
-app.get('/buscarpalabras', async (req, res) => {
-    const searchTerm = req.query.q;
-    const key = `SELECT DISTINCT ON (m.movie_id) m.movie_id, m.title
-                 FROM movie m
-                     LEFT JOIN movie_keywords mk ON m.movie_id = mk.movie_id
-                     LEFT JOIN keyword k ON mk.keyword_id = k.keyword_id
-                 WHERE k.keyword_name ILIKE $1`;
-
-    const values = [`%${searchTerm}%`];
-    try {
-        // Usar db.query que devuelve una promesa y acceder a .rows
-        const keys = await db.query(key,values);
-
-
-
-        // le paso al express de pagina resultado los resultados que voy teniendo
-        res.render('resultados_keyword', {
-            keys: keys.rows,
-            searchTerm
-        });
-
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error en la búsqueda.');
-    }
-
-
-})
-
-// Ruta para la página de datos de una película particular (PostgreSQL)
-app.get('/pelicula/:id', async (req, res) => { // Convertir a async
+// DETALLE PELÍCULA
+app.get('/pelicula/:id', async (req, res) => {
     const movieId = req.params.id;
 
-    const query = `
-    SELECT
-      movie.*,
-      actor.person_name as actor_name,
-      actor.person_id as actor_id,
-      crew_member.person_name as crew_member_name,
-      crew_member.person_id as crew_member_id,
-      movie_cast.character_name,
-      movie_cast.cast_order,
-      department.department_name,
-      movie_crew.job
-    FROM movie
-    LEFT JOIN movie_cast ON movie.movie_id = movie_cast.movie_id
-    LEFT JOIN person as actor ON movie_cast.person_id = actor.person_id
-    LEFT JOIN movie_crew ON movie.movie_id = movie_crew.movie_id
-    LEFT JOIN department ON movie_crew.department_id = department.department_id
-    LEFT JOIN person as crew_member ON crew_member.person_id = movie_crew.person_id
-    WHERE movie.movie_id = $1
-  `;
-
     try {
-        const result = await db.query(query, [movieId]);
-        const rows = result.rows;
+        const result = await db.query(`
+            SELECT
+                m.*,
+                actor.person_name AS actor_name,
+                actor.person_id AS actor_id,
+                crew.person_name AS crew_member_name,
+                crew.person_id AS crew_member_id,
+                mc.character_name,
+                mc.cast_order,
+                d.department_name,
+                c.job
+            FROM movies.movie m
+                     LEFT JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
+                     LEFT JOIN movies.person actor ON mc.person_id = actor.person_id
+                     LEFT JOIN movies.movie_crew c ON m.movie_id = c.movie_id
+                     LEFT JOIN movies.department d ON c.department_id = d.department_id
+                     LEFT JOIN movies.person crew ON crew.person_id = c.person_id
+            WHERE m.movie_id = $1;
+        `, [movieId]);
 
-        if (rows.length === 0) {
-            return res.status(404).send('Película no encontrada.');
-        }
+        if (result.rows.length === 0) return res.status(404).send('Película no encontrada.');
 
         const movieData = {
-            id: rows[0].id,
-            title: rows[0].title,
-            release_date: rows[0].release_date,
-            overview: rows[0].overview,
+            title: result.rows[0].title,
+            release_date: result.rows[0].release_date,
+            overview: result.rows[0].overview,
             directors: [],
             writers: [],
             cast: [],
-            crew: [],
+            crew: []
         };
 
-        rows.forEach((row) => {
-            if (row.crew_member_id && row.crew_member_name && row.department_name && row.job) {
-                const isDuplicate = movieData.directors.some((crew_member) => crew_member.crew_member_id === row.crew_member_id);
-                if (!isDuplicate && row.department_name === 'Directing' && row.job === 'Director') {
-                    movieData.directors.push({
-                        crew_member_id: row.crew_member_id,
-                        crew_member_name: row.crew_member_name,
-                        department_name: row.department_name,
-                        job: row.job,
-                    });
-                }
+        result.rows.forEach(row => {
+            if (row.job === 'Director' && row.department_name === 'Directing') {
+                movieData.directors.push({
+                    crew_member_id: row.crew_member_id,
+                    crew_member_name: row.crew_member_name
+                });
+            }
+
+            if (row.actor_id) {
+                movieData.cast.push({
+                    actor_id: row.actor_id,
+                    actor_name: row.actor_name,
+                    character_name: row.character_name
+                });
             }
         });
 
-        rows.forEach((row) => {
-            if (row.crew_member_id && row.crew_member_name && row.department_name && row.job) {
-                const isDuplicate = movieData.writers.some((crew_member) => crew_member.crew_member_id === row.crew_member_id);
-                if (!isDuplicate && row.department_name === 'Writing' && (row.job === 'Writer' || row.job === 'Screenplay')) { // Ajuste para más roles de escritura
-                    movieData.writers.push({
-                        crew_member_id: row.crew_member_id,
-                        crew_member_name: row.crew_member_name,
-                        department_name: row.department_name,
-                        job: row.job,
-                    });
-                }
-            }
-        });
-
-        rows.forEach((row) => {
-            if (row.actor_id && row.actor_name && row.character_name) {
-                const isDuplicate = movieData.cast.some((actor) => actor.actor_id === row.actor_id);
-                if (!isDuplicate) {
-                    movieData.cast.push({
-                        actor_id: row.actor_id,
-                        actor_name: row.actor_name,
-                        character_name: row.character_name,
-                        cast_order: row.cast_order,
-                    });
-                }
-            }
-        });
-
-        rows.forEach((row) => {
-            if (row.crew_member_id && row.crew_member_name && row.department_name && row.job) {
-                const isDuplicate = movieData.crew.some((crew_member) => crew_member.crew_member_id === row.crew_member_id);
-                if (!isDuplicate) {
-                    if (row.department_name !== 'Directing' && row.department_name !== 'Writing') {
-                        movieData.crew.push({
-                            crew_member_id: row.crew_member_id,
-                            crew_member_name: row.crew_member_name,
-                            department_name: row.department_name,
-                            job: row.job,
-                        });
-                    }
-                }
-            }
-        });
-
-        res.render('pelicula', { movie: movieData });
+        res.render('pelicula', { movie: movieData, userId: req.session.userId });
 
     } catch (err) {
         console.error(err);
-        res.status(500).send('Error al cargar los datos de la película.');
+        res.status(500).send('Error.');
     }
 });
 
-// Ruta para mostrar la página de un actor específico (PostgreSQL)
+// ACTOR
 app.get('/actor/:id', async (req, res) => {
-    const actorId = req.params.id;
-
-    const query = `
-    SELECT DISTINCT
-      person.person_name as actorName,
-      movie.*
-    FROM movie
-    INNER JOIN movie_cast ON movie.movie_id = movie_cast.movie_id
-    INNER JOIN person ON person.person_id = movie_cast.person_id
-    WHERE movie_cast.person_id = $1;
-  `;
-
     try {
-        const result = await db.query(query, [actorId]);
-        const movies = result.rows;
-        const actorName = movies.length > 0 ? movies[0].actorname : ''; // Ojo: postgres devuelve todo en minúsculas por defecto
-        res.render('actor', { actorName, movies });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error al cargar las películas del actor.');
+        const result = await db.query(`
+            SELECT DISTINCT p.person_name AS actorName, m.*
+            FROM movies.movie m
+                     INNER JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
+                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            WHERE mc.person_id = $1;
+        `, [req.params.id]);
+
+        const actorName = result.rows[0]?.actorname || '';
+        res.render('actor', { actorName, movies: result.rows, userId: req.session.userId });
+
+    } catch {
+        res.status(500).send('Error al cargar actor.');
     }
 });
 
-// Ruta para mostrar la página de un director específico (PostgreSQL)
+// DIRECTOR
 app.get('/director/:id', async (req, res) => {
-    const directorId = req.params.id;
-
-    const query = `
-    SELECT DISTINCT
-      person.person_name as directorName,
-      movie.*
-    FROM movie
-    INNER JOIN movie_crew ON movie.movie_id = movie_crew.movie_id
-    INNER JOIN person ON person.person_id = movie_crew.person_id
-    WHERE movie_crew.job = 'Director' AND movie_crew.person_id = $1;
-  `;
-
     try {
-        const result = await db.query(query, [directorId]);
-        const movies = result.rows;
-        const directorName = movies.length > 0 ? movies[0].directorname : ''; // Ojo: postgres devuelve todo en minúsculas por defecto
-        res.render('director', { directorName, movies });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Error al cargar las películas del director.');
+        const result = await db.query(`
+            SELECT DISTINCT p.person_name AS directorName, m.*
+            FROM movies.movie m
+                     INNER JOIN movies.movie_crew mc ON m.movie_id = mc.movie_id
+                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            WHERE mc.job = 'Director' AND mc.person_id = $1;
+        `, [req.params.id]);
+
+        const directorName = result.rows[0]?.directorname || '';
+        res.render('director', { directorName, movies: result.rows, userId: req.session.userId });
+
+    } catch {
+        res.status(500).send('Error al cargar director.');
     }
 });
 
-// Crear usuario
-app.post('/usuarios', async (req, res) => {
-  try {
-    const { user_username, user_name, user_email } = req.body;
-    const query = `
-      INSERT INTO movies."user"
-        (user_username, user_name, user_email)
-      VALUES ($1, $2, $3)
-      RETURNING *;
-    `;
-    const result = await db.query(query, [user_username, user_name, user_email]);
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener todos los usuarios
+// USUARIOS
 app.get('/usuarios', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT * 
-      FROM movies."user"
-      ORDER BY user_id;
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        const result = await db.query(`
+            SELECT user_id, user_username, user_name, user_email
+            FROM public."user"
+            ORDER BY user_id;
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// Borrar usuario
+// DELETE USUARIO
 app.delete('/usuarios/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await db.query(`
-      DELETE
-      FROM movies."user"
-      WHERE user_id = $1
-      RETURNING *;
-    `, [id]);
+    try {
+        const result = await db.query(`
+            DELETE FROM public."user"
+            WHERE user_id = $1 RETURNING user_id, user_username, user_name, user_email;
+        `, [req.params.id]);
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+        if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        res.json({ mensaje: 'Usuario eliminado', usuario: result.rows[0] });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    res.json({ mensaje: 'Usuario eliminado', usuario: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
-// Modificar usuario
+// PUT USUARIO
 app.put('/usuarios/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { user_username, user_name, user_email } = req.body;
-    if (!user_username && !user_name && !user_email) {
-      return res.status(400).json({ error: 'Debe enviar al menos un campo para actualizar.' });
+    try {
+        const { user_username, user_name, user_email } = req.body;
+
+        let set = [];
+        let values = [];
+        let i = 1;
+
+        if (user_username) { set.push(`user_username = $${i++}`); values.push(user_username); }
+        if (user_name)      { set.push(`user_name = $${i++}`); values.push(user_name); }
+        if (user_email)     { set.push(`user_email = $${i++}`); values.push(user_email); }
+
+        values.push(req.params.id);
+
+        const result = await db.query(`
+            UPDATE public."user"
+            SET ${set.join(', ')}
+            WHERE user_id = $${values.length}
+                RETURNING user_id, user_username, user_name, user_email;
+        `, values);
+
+        if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        res.json({ mensaje: 'Usuario actualizado', usuario: result.rows[0] });
+
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
-    let set = [];
-    let values = [];
-    let i = 1;
-
-    if (user_username) {
-      set.push(`user_username = $${i++}`);
-      values.push(user_username);
-    }
-    if (user_name) {
-      set.push(`user_name = $${i++}`);
-      values.push(user_name);
-    }
-    if (user_email) {
-      set.push(`user_email = $${i++}`);
-      values.push(user_email);
-    }
-
-    values.push(id);
-
-    const query = `
-      UPDATE movies."user"
-      SET ${set.join(', ')}
-      WHERE user_id = $${values.length}
-      RETURNING *;
-    `;
-
-    const result = await db.query(query, values);
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
-    }
-
-    res.json({ mensaje: 'Usuario actualizado', usuario: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
 });
 
-app.listen(port, () => {
-    console.log(`Servidor en ejecución en http://localhost:${port}`);
-});
+app.listen(port, () => console.log(`✅ Servidor corriendo en http://localhost:${port}`));
