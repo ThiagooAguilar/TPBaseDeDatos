@@ -98,3 +98,114 @@ body {
     flex-direction: column;
     align-items: center;
 }
+
+/* --- ESTILOS DE AUTENTICACIÓN (LOGIN/REGISTER) --- */
+
+/* Contenedor principal para centrar la tarjeta */
+.auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Ocupa el alto completo de la vista */
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* Tarjeta del formulario */
+.auth-card {
+    background-color: #222; /* El mismo color que tu contenido principal */
+    padding: 40px;
+    border-radius: 12px; /* Esquinas más suaves */
+    width: 100%;
+    max-width: 400px; /* Ancho máximo para que no se extienda demasiado */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* Sombra suave */
+    text-align: center; /* Centrar el título */
+}
+
+.auth-card h2 {
+    color: #7F00FF; /* Título púrpura */
+    margin-bottom: 30px;
+    font-size: 28px;
+}
+
+/* Grupos de formulario */
+.form-group {
+    margin-bottom: 20px;
+    text-align: left; /* Alinear etiquetas a la izquierda */
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #bbb;
+}
+
+/* Campos de entrada */
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group input[type="email"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #444;
+    border-radius: 6px;
+    background-color: #333; /* Fondo del campo de entrada */
+    color: #fff;
+    font-size: 16px;
+    box-sizing: border-box; /* Incluir padding en el ancho */
+}
+
+.form-group input:focus {
+    border-color: #7F00FF; /* Borde púrpura al enfocar */
+    outline: none;
+    box-shadow: 0 0 5px rgba(127, 0, 255, 0.5);
+}
+
+/* Estilo del botón de envío (btn primary) */
+.auth-card .btn.primary {
+    width: 100%;
+    padding: 12px;
+    margin-top: 15px;
+    font-size: 18px;
+    background-color: #7F00FF; /* Púrpura principal */
+    color: #111; /* Color de texto oscuro para contraste */
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.3s ease;
+}
+
+.auth-card .btn.primary:hover {
+    background-color: #9933ff; /* Un púrpura más claro al pasar el ratón */
+}
+
+/* Mensajes de error */
+.message.error {
+    background-color: #330000;
+    color: #ff4d4d;
+    border: 1px solid #ff4d4d;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    text-align: left;
+    font-weight: bold;
+}
+
+/* Pie de página (link a Register/Login) */
+.auth-footer {
+    margin-top: 25px;
+    color: #aaa;
+    font-size: 14px;
+}
+
+.auth-footer a {
+    color: #7F00FF; /* Link púrpura */
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s ease;
+}
+
+.auth-footer a:hover {
+    color: #fff;
+}
