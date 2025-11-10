@@ -4,11 +4,12 @@ const express = require('express');
 const connectMongo = require('./mongodb/connectMongo');
 const userActivityRoutes = require('./mongodb/userActivity.route');
 const { Pool } = require('pg');
+
 // Dependencias para Autenticación
 const bcrypt = require('bcrypt');
 const session = require('express-session');
 
-// contruccion de la pagina con express
+// Construcción de la página con express
 const app = express();
 const port = process.env.PORT || 3500;
 
@@ -18,8 +19,6 @@ connectMongo();
 app.use(express.static('views'));
 app.use(express.static('public'));
 app.use(express.json());
-
-// ⚠️ CORRECCIÓN CLAVE: Añadir middleware para parsear formularios tradicionales
 app.use(express.urlencoded({ extended: true }));
 
 // Configurar middleware de sesión
@@ -32,7 +31,7 @@ app.use(session({
 
 app.use('/activity', userActivityRoutes);
 
-// Conexión a PostgreSQL
+// Conexión a PostgreSQL con manejo de errores
 const db = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -41,13 +40,94 @@ const db = new Pool({
     port: process.env.DB_PORT,
 });
 
+// Verificar conexión a PostgreSQL
+db.on('error', (err) => {
+    console.error('❌ Error en la conexión de PostgreSQL:', err);
+});
+
+db.query('SELECT NOW()', (err, res) => {
+    if (err) {
+        console.error('❌ No se pudo conectar a PostgreSQL:', err);
+    } else {
+        console.log('✅ PostgreSQL conectado:', res.rows[0].now);
+    }
+});
+
+// Importar el servicio y controlador
+const MovieUserService = require('./movieUser.service');
+const MovieUserController = require('./movieUser.controller');
+const UserActivityService = require('./mongodb/userActivity.service');
+
+// Inicializar la instancia del controlador
+const movieUserController = new MovieUserController(db, MovieUserService);
+
 // Motor de plantillas
 app.set('view engine', 'ejs');
 
+// Middleware de autenticación
 const isAuthenticated = (req, res, next) => {
-    if (req.session.userId) next();
-    else res.redirect('/login');
+    if (req.session.userId) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
 };
+
+/* =========================
+    RUTAS DE MOVIE_USER
+========================= */
+
+// Ruta 1: POST para guardar Rating y Opinión (PROTEGIDA)
+app.post('/api/movie-user', isAuthenticated, async (req, res) => {
+    try {
+        await movieUserController.postInteraction(req, res);
+
+        // Registrar actividad en MongoDB (no bloquea si falla)
+        const { movie_id, rating, opinion } = req.body;
+
+        if (rating) {
+            UserActivityService.registerActivity(
+                req.session.userId.toString(),
+                'RATED_MOVIE',
+                { movieId: movie_id, rating: rating }
+            ).catch(err => console.error('⚠️ Error logging activity:', err));
+        }
+
+        if (opinion) {
+            UserActivityService.registerActivity(
+                req.session.userId.toString(),
+                'WROTE_REVIEW',
+                { movieId: movie_id, reviewLength: opinion.length }
+            ).catch(err => console.error('⚠️ Error logging activity:', err));
+        }
+
+    } catch (error) {
+        console.error('❌ Error en /api/movie-user:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Ruta 2: POST para Favorito (Toggle) (PROTEGIDA)
+app.post('/api/movie-user/favorite', isAuthenticated, async (req, res) => {
+    try {
+        await movieUserController.toggleFavorite(req, res);
+
+        // Registrar actividad en MongoDB
+        const { movie_id, favorite } = req.body;
+
+        if (favorite) {
+            UserActivityService.registerActivity(
+                req.session.userId.toString(),
+                'ADDED_TO_FAVORITES',
+                { movieId: movie_id }
+            ).catch(err => console.error('⚠️ Error logging activity:', err));
+        }
+
+    } catch (error) {
+        console.error('❌ Error en /api/movie-user/favorite:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 /* =========================
     RUTAS DE AUTENTICACIÓN
@@ -79,9 +159,11 @@ app.post('/register', async (req, res) => {
         `, [user_username, user_name, user_email, hash]);
 
         req.session.userId = result.rows[0].user_id;
+        console.log('✅ Usuario registrado:', user_username);
         res.redirect('/');
 
     } catch (err) {
+        console.error('❌ Error en /register:', err);
         let errorMessage = 'Error al intentar registrar.';
         if (err.code === '23505') errorMessage = 'Usuario o email ya existe.';
         req.session.error = errorMessage;
@@ -100,12 +182,10 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
     const { identifier, user_password } = req.body;
 
-    // --- DEBUGGING ---
     console.log('--- INTENTO DE LOGIN ---');
     console.log('Identificador recibido:', identifier);
 
     try {
-        // 🚀 CORRECCIÓN: Usar ILIKE para la búsqueda insensible a mayúsculas/minúsculas
         const result = await db.query(`
             SELECT user_id, user_password_hash
             FROM public."user"
@@ -114,22 +194,20 @@ app.post('/login', async (req, res) => {
 
         const user = result.rows[0];
 
-        // --- DEBUGGING ---
-        if (user) {
-            console.log('Usuario encontrado. ID:', user.user_id);
-        } else {
-            console.log('Usuario NO encontrado en la DB (Verificar mayúsculas/minúsculas).');
+        if (!user) {
+            console.log('❌ Usuario NO encontrado en la DB.');
             req.session.error = 'Credenciales inválidas.';
             return res.redirect('/login');
         }
 
-        // El resto del código funciona solo si 'user' es encontrado
+        console.log('✅ Usuario encontrado. ID:', user.user_id);
+
         const isMatch = await bcrypt.compare(user_password, user.user_password_hash);
         console.log('Resultado de bcrypt.compare:', isMatch);
 
         if (isMatch) {
             req.session.userId = user.user_id;
-            console.log('Login exitoso.');
+            console.log('✅ Login exitoso.');
             return res.redirect('/');
         }
 
@@ -137,11 +215,12 @@ app.post('/login', async (req, res) => {
         res.redirect('/login');
 
     } catch (err) {
-        console.error('Error en la ruta /login:', err);
+        console.error('❌ Error en la ruta /login:', err);
         req.session.error = 'Error en el servidor.';
         res.redirect('/login');
     }
 });
+
 // Logout
 app.get('/logout', (req, res) => {
     req.session.destroy(() => res.redirect('/login'));
@@ -176,42 +255,38 @@ app.get('/', async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
-        res.render('index', { trendingMovies: [], topRatedMovies: [], userId: req.session.userId });
+        console.error('❌ Error en ruta /:', err);
+        res.render('index', {
+            trendingMovies: [],
+            topRatedMovies: [],
+            userId: req.session.userId
+        });
     }
 });
 
 // BUSCAR
 app.get('/buscar', async (req, res) => {
-    const searchTerm = `%${req.query.q}%`;
+    const searchTerm = `%${req.query.q || ''}%`;
 
     try {
         const movies = await db.query(`
-            SELECT * FROM movies.movie WHERE title ILIKE $1;
+            SELECT * FROM movies.movie WHERE title ILIKE $1 LIMIT 50;
         `, [searchTerm]);
 
         const actors = await db.query(`
             SELECT DISTINCT p.person_name, p.person_id
             FROM movies.person p
                      JOIN movies.movie_cast mc ON mc.person_id = p.person_id
-            WHERE p.person_name ILIKE $1;
+            WHERE p.person_name ILIKE $1
+                LIMIT 20;
         `, [searchTerm]);
 
         const directors = await db.query(`
             SELECT DISTINCT p.person_name, p.person_id
             FROM movies.movie_crew mc
                      JOIN movies.person p ON mc.person_id = p.person_id
-            WHERE mc.job = 'Director' AND p.person_name ILIKE $1;
-        `, [searchTerm]);
-
-        const keys = await db.query(`
-            WITH keyword_in_movie AS (
-                SELECT DISTINCT m.*, k.keyword_name
-                FROM movies.movie m
-                         LEFT JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
-                         LEFT JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
-            )
-            SELECT * FROM keyword_in_movie WHERE keyword_name ILIKE $1;
+            WHERE mc.job = 'Director' AND p.person_name ILIKE $1
+                LIMIT 20;
         `, [searchTerm]);
 
         res.render('resultado', {
@@ -222,39 +297,29 @@ app.get('/buscar', async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err);
+        console.error('❌ Error en /buscar:', err);
         res.status(500).send('Error en la búsqueda.');
     }
 });
-app.get('/search_keyword', (req, res) => {
-    // 1. Resuelve 'query is not defined'
-    const searchTerm = req.query.q || '';
 
+app.get('/search_keyword', (req, res) => {
+    const searchTerm = req.query.q || '';
     res.render('search_keyword', {
         query: searchTerm,
-        userId: req.session.userId // (u otras variables globales que uses)
+        userId: req.session.userId
     });
 });
-// Asegúrate de tener tu cliente de PostgreSQL importado y conectado, ej:
-// const pool = require('./db_config');
 
-// --- RUTA 2: Procesa la búsqueda y muestra los resultados ---
-// --- RUTA 2: Procesa la búsqueda y muestra los resultados ---
 app.get('/buscarpalabras', async (req, res) => {
-    // Captura el término de búsqueda de la URL (?q=...)
     const queryTerm = req.query.q;
 
-    // Si no hay término de búsqueda, redireccionamos o mostramos el formulario
     if (!queryTerm) {
         return res.redirect('/search_keyword');
     }
 
-    // Adaptamos el término para búsqueda LIKE: %keyword%
     const searchTerm = `%${queryTerm.toLowerCase()}%`;
 
-    // La consulta SQL que proporcionaste, adaptada para buscar y evitar duplicados
     const sqlQuery = `
-        -- Selecciona campos distintivos de la película
         SELECT DISTINCT ON (m.movie_id)
             m.movie_id,
             m.title,
@@ -264,36 +329,38 @@ app.get('/buscarpalabras', async (req, res) => {
         JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
         JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
         WHERE LOWER(k.keyword_name) LIKE $1
-        ORDER BY m.movie_id, m.release_date DESC;
+        ORDER BY m.movie_id, m.release_date DESC
+        LIMIT 100;
     `;
 
-    let movies = [];
-
     try {
-        // Ejecución de la consulta SQL (CORRECCIÓN: Se usa 'db' en lugar de 'pool')
         const result = await db.query(sqlQuery, [searchTerm]);
-        movies = result.rows;
+
+        res.render('resultados_keyword', {
+            movies: result.rows,
+            query: queryTerm,
+            userId: req.session.userId
+        });
 
     } catch (error) {
-        console.error('Error al buscar películas por palabra clave:', error);
-        // Si hay un error, puedes devolver 500 para informar al usuario
-        return res.status(500).send('Error interno del servidor al consultar la base de datos.');
+        console.error('❌ Error al buscar películas por palabra clave:', error);
+        res.status(500).send('Error interno del servidor al consultar la base de datos.');
     }
-
-    // Renderiza la vista de resultados (la EJS que proporcionaste)
-    res.render('resultados_keyword', {
-        movies: movies,
-        query: queryTerm, // Pasamos el término de búsqueda para mostrarlo en el título
-        userId: req.session.userId // Asegúrate de tener userId si lo usas
-    });
 });
 
-// DETALLE PELÍCULA
+// DETALLE PELÍCULA (CORREGIDO)
 app.get('/pelicula/:id', async (req, res) => {
-    const movieId = req.params.id;
+    const movieId = parseInt(req.params.id); // CONVERTIR A NÚMERO
+    const userId = req.session.userId;
+
+    // DEBUGGING
+    console.log('--- DETALLE PELÍCULA ---');
+    console.log('Movie ID:', movieId);
+    console.log('User ID:', userId);
 
     try {
-        const result = await db.query(`
+        // 1. Consulta Principal de Película, Elenco y Equipo
+        const movieResult = await db.query(`
             SELECT
                 m.*,
                 actor.person_name AS actor_name,
@@ -305,48 +372,98 @@ app.get('/pelicula/:id', async (req, res) => {
                 d.department_name,
                 c.job
             FROM movies.movie m
-                     LEFT JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
-                     LEFT JOIN movies.person actor ON mc.person_id = actor.person_id
-                     LEFT JOIN movies.movie_crew c ON m.movie_id = c.movie_id
-                     LEFT JOIN movies.department d ON c.department_id = d.department_id
-                     LEFT JOIN movies.person crew ON crew.person_id = c.person_id
+            LEFT JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
+            LEFT JOIN movies.person actor ON mc.person_id = actor.person_id
+            LEFT JOIN movies.movie_crew c ON m.movie_id = c.movie_id
+            LEFT JOIN movies.department d ON c.department_id = d.department_id
+            LEFT JOIN movies.person crew ON crew.person_id = c.person_id
             WHERE m.movie_id = $1;
         `, [movieId]);
 
-        if (result.rows.length === 0) return res.status(404).send('Película no encontrada.');
+        if (movieResult.rows.length === 0) {
+            return res.status(404).send('Película no encontrada.');
+        }
 
+        // 2. Procesar Datos de la Película
         const movieData = {
-            title: result.rows[0].title,
-            release_date: result.rows[0].release_date,
-            overview: result.rows[0].overview,
+            movie_id: movieResult.rows[0].movie_id, // ⭐ AGREGADO
+            title: movieResult.rows[0].title,
+            release_date: movieResult.rows[0].release_date,
+            overview: movieResult.rows[0].overview,
+            poster_url: movieResult.rows[0].poster_url,
+            vote_average: movieResult.rows[0].vote_average,
             directors: [],
             writers: [],
             cast: [],
             crew: []
         };
 
-        result.rows.forEach(row => {
-            if (row.job === 'Director' && row.department_name === 'Directing') {
-                movieData.directors.push({
-                    crew_member_id: row.crew_member_id,
-                    crew_member_name: row.crew_member_name
-                });
-            }
+        const processedCastIds = new Set();
+        const processedCrewIds = new Set();
 
-            if (row.actor_id) {
+        movieResult.rows.forEach(row => {
+            // Elenco (cast)
+            if (row.actor_id && !processedCastIds.has(row.actor_id)) {
                 movieData.cast.push({
                     actor_id: row.actor_id,
                     actor_name: row.actor_name,
-                    character_name: row.character_name
+                    character_name: row.character_name,
+                    cast_order: row.cast_order
                 });
+                processedCastIds.add(row.actor_id);
+            }
+
+            // Equipo (crew)
+            if (row.crew_member_id && !processedCrewIds.has(row.crew_member_id)) {
+                const crewMember = {
+                    crew_member_id: row.crew_member_id,
+                    crew_member_name: row.crew_member_name,
+                    department_name: row.department_name,
+                    job: row.job
+                };
+
+                if (row.job === 'Director' && row.department_name === 'Directing') {
+                    movieData.directors.push(crewMember);
+                } else if (row.job === 'Writer') {
+                    movieData.writers.push(crewMember);
+                } else {
+                    movieData.crew.push(crewMember);
+                }
+
+                processedCrewIds.add(row.crew_member_id);
             }
         });
 
-        res.render('pelicula', { movie: movieData, userId: req.session.userId });
+        // 3. Consulta de Interacción del Usuario (movie_user)
+        let movieUserData = { rating: null, opinion: null, favorite: false };
+
+        if (userId) {
+            const userInteractionResult = await db.query(`
+                SELECT rating, opinion, favorite
+                FROM movies.movie_user
+                WHERE user_id = $1 AND movie_id = $2;
+            `, [userId, movieId]);
+
+            if (userInteractionResult.rows.length > 0) {
+                const data = userInteractionResult.rows[0];
+                movieUserData = {
+                    rating: data.rating,
+                    opinion: data.opinion,
+                    favorite: data.favorite
+                };
+            }
+        }
+
+        // 4. Renderizar la vista
+        res.render('pelicula', {
+            movie: movieData,
+            current_user_id: userId,
+            movie_user_data: movieUserData
+        });
 
     } catch (err) {
-        console.error(err);
-        res.status(500).send('Error.');
+        console.error('❌ Error en /pelicula/:id:', err);
+        res.status(500).send('Error interno del servidor.');
     }
 });
 
@@ -356,15 +473,20 @@ app.get('/actor/:id', async (req, res) => {
         const result = await db.query(`
             SELECT DISTINCT p.person_name AS actorName, m.*
             FROM movies.movie m
-                     INNER JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
-                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            INNER JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
+            INNER JOIN movies.person p ON p.person_id = mc.person_id
             WHERE mc.person_id = $1;
         `, [req.params.id]);
 
         const actorName = result.rows[0]?.actorname || '';
-        res.render('actor', { actorName, movies: result.rows, userId: req.session.userId });
+        res.render('actor', {
+            actorName,
+            movies: result.rows,
+            userId: req.session.userId
+        });
 
-    } catch {
+    } catch (err) {
+        console.error('❌ Error en /actor/:id:', err);
         res.status(500).send('Error al cargar actor.');
     }
 });
@@ -375,15 +497,20 @@ app.get('/director/:id', async (req, res) => {
         const result = await db.query(`
             SELECT DISTINCT p.person_name AS directorName, m.*
             FROM movies.movie m
-                     INNER JOIN movies.movie_crew mc ON m.movie_id = mc.movie_id
-                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            INNER JOIN movies.movie_crew mc ON m.movie_id = mc.movie_id
+            INNER JOIN movies.person p ON p.person_id = mc.person_id
             WHERE mc.job = 'Director' AND mc.person_id = $1;
         `, [req.params.id]);
 
         const directorName = result.rows[0]?.directorname || '';
-        res.render('director', { directorName, movies: result.rows, userId: req.session.userId });
+        res.render('director', {
+            directorName,
+            movies: result.rows,
+            userId: req.session.userId
+        });
 
-    } catch {
+    } catch (err) {
+        console.error('❌ Error en /director/:id:', err);
         res.status(500).send('Error al cargar director.');
     }
 });
@@ -398,6 +525,7 @@ app.get('/usuarios', async (req, res) => {
         `);
         res.json(result.rows);
     } catch (err) {
+        console.error('❌ Error en /usuarios:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -407,13 +535,18 @@ app.delete('/usuarios/:id', async (req, res) => {
     try {
         const result = await db.query(`
             DELETE FROM public."user"
-            WHERE user_id = $1 RETURNING user_id, user_username, user_name, user_email;
+            WHERE user_id = $1
+                RETURNING user_id, user_username, user_name, user_email;
         `, [req.params.id]);
 
-        if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
         res.json({ mensaje: 'Usuario eliminado', usuario: result.rows[0] });
 
     } catch (err) {
+        console.error('❌ Error en DELETE /usuarios/:id:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -431,21 +564,42 @@ app.put('/usuarios/:id', async (req, res) => {
         if (user_name)      { set.push(`user_name = $${i++}`); values.push(user_name); }
         if (user_email)     { set.push(`user_email = $${i++}`); values.push(user_email); }
 
+        if (set.length === 0) {
+            return res.status(400).json({ error: 'No hay campos para actualizar' });
+        }
+
         values.push(req.params.id);
 
         const result = await db.query(`
             UPDATE public."user"
             SET ${set.join(', ')}
             WHERE user_id = $${values.length}
-                RETURNING user_id, user_username, user_name, user_email;
+            RETURNING user_id, user_username, user_name, user_email;
         `, values);
 
-        if (result.rowCount === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
         res.json({ mensaje: 'Usuario actualizado', usuario: result.rows[0] });
 
     } catch (err) {
+        console.error('❌ Error en PUT /usuarios/:id:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-app.listen(port, () => console.log(`✅ Servidor corriendo en http://localhost:${port}`));
+// Manejo de errores 404
+app.use((req, res) => {
+    res.status(404).send('❌ Página no encontrada');
+});
+
+// Manejo de errores globales
+app.use((err, req, res, next) => {
+    console.error('❌ Error no manejado:', err);
+    res.status(500).send('Error interno del servidor');
+});
+
+app.listen(port, () => {
+    console.log(`✅ Servidor corriendo en http://localhost:${port}`);
+});

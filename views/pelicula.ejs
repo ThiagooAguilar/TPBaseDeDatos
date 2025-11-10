@@ -25,6 +25,15 @@ const day = date.getDate();
 const month = monthNames[date.getMonth()];
 const year = date.getFullYear();
 const formattedDate = `${day}-${month}-${year}`;
+
+// --- VARIABLES NECESARIAS (ASEGÚRATE DE PASAR ESTAS DESDE EL BACKEND) ---
+// Simulación de datos (DEBE SER REEMPLAZADO POR DATOS REALES DEL BACKEND)
+const current_user_id = locals.current_user_id || '123'; // ID del usuario logueado
+const movie_user_data = locals.movie_user_data || {
+    rating: null,
+    opinion: '',
+    favorite: false
+}; // Datos de la tabla movie_user para este usuario/película
 %>
 
 <div class="flex flex-col md:flex-row gap-8 mb-10">
@@ -117,6 +126,131 @@ const orderedCast = movie.cast.sort((a, b) => a.cast_order - b.cast_order);
         </ul>
     </div>
 <% } %>
+
+---
+
+<div class="divider"></div>
+
+<div class="ml-4 pb-6">
+    <h3 class="text-3xl text-white mt-8 mb-4">🎬 Tu Puntuación y Opinión</h3>
+
+    <div class="p-6 bg-[#222] rounded-lg shadow-xl border border-gray-700 max-w-4xl mx-auto">
+        <form id="interaction-form" onsubmit="handleInteraction(event)">
+            <input type="hidden" id="user_id" name="user_id" value="<%= current_user_id %>">
+            <input type="hidden" id="movie_id" name="movie_id" value="<%= movie.id %>">
+
+            <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                <div class="form-control w-full sm:w-1/3">
+                    <label class="label">
+                        <span class="label-text text-white font-bold">Tu Puntuación (1-10):</span>
+                    </label>
+                    <input type="number" id="rating" name="rating" min="1" max="10" placeholder="Ej: 8"
+                           value="<%= movie_user_data.rating || '' %>"
+                           class="input input-bordered input-sm bg-[#333] border-[#7F00FF] w-full text-white" />
+                </div>
+
+                <div class="tooltip tooltip-bottom mt-6 sm:mt-0" data-tip="Añadir/Quitar de Favoritos">
+                    <button type="button" id="favorite-btn"
+                            class="btn btn-lg w-full sm:w-auto <%= movie_user_data.favorite ? 'btn-error' : 'btn-outline btn-warning' %> transition duration-200">
+                        <span id="favorite-text"><%= movie_user_data.favorite ? '❤️ Favorita' : '🤍 Añadir a Favs' %></span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-control mb-6">
+                <label class="label">
+                    <span class="label-text text-white font-bold">Tu Opinión/Reseña:</span>
+                </label>
+                <textarea id="opinion" name="opinion" placeholder="Escribe tu reseña..."
+                          class="textarea textarea-bordered h-24 bg-[#333] border-[#7F00FF] text-white"><%= movie_user_data.opinion || '' %></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-block bg-[#7F00FF] border-0 hover:bg-[#9933FF]">
+                Guardar Puntuación y Opinión
+            </button>
+            <div id="save-message" class="mt-3 text-center text-sm font-bold hidden"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const saveMessage = document.getElementById('save-message');
+    const favoriteBtn = document.getElementById('favorite-btn');
+    const favoriteText = document.getElementById('favorite-text');
+
+    // --- Función para manejar el Rating y Opinión ---
+    async function handleInteraction(event) {
+        event.preventDefault();
+
+        const userId = document.getElementById('user_id').value;
+        const movieId = document.getElementById('movie_id').value;
+        const rating = document.getElementById('rating').value;
+        const opinion = document.getElementById('opinion').value;
+
+        // Limpiar el mensaje previo
+        saveMessage.classList.add('hidden');
+        saveMessage.classList.remove('text-success', 'text-error');
+
+        const data = {
+            user_id: userId,
+            movie_id: movieId,
+            rating: rating ? parseInt(rating) : null,
+            opinion: opinion || null,
+        };
+
+        const response = await fetch('/api/movie-user', { // ASEGÚRATE DE CREAR ESTA RUTA EN EL BACKEND
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            saveMessage.textContent = '✅ Puntuación y Opinión guardadas.';
+            saveMessage.classList.remove('hidden');
+            saveMessage.classList.add('text-success');
+        } else {
+            saveMessage.textContent = '❌ Error al guardar. Asegúrate de estar logueado.';
+            saveMessage.classList.remove('hidden');
+            saveMessage.classList.add('text-error');
+        }
+        setTimeout(() => saveMessage.classList.add('hidden'), 3000);
+    }
+
+    // --- Función para manejar el Favorito (Toggle) ---
+    favoriteBtn.addEventListener('click', async () => {
+        const newFavoriteState = !favoriteBtn.classList.contains('btn-error');
+
+        const userId = document.getElementById('user_id').value;
+        const movieId = document.getElementById('movie_id').value;
+
+        const data = {
+            user_id: userId,
+            movie_id: movieId,
+            favorite: newFavoriteState
+        };
+
+        const response = await fetch('/api/movie-user/favorite', { // ASEGÚRATE DE CREAR ESTA RUTA EN EL BACKEND
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            // Alternar las clases y el texto visualmente
+            favoriteBtn.classList.toggle('btn-error');
+            favoriteBtn.classList.toggle('btn-outline');
+            favoriteBtn.classList.toggle('btn-warning');
+
+            if (newFavoriteState) {
+                favoriteText.textContent = '❤️ Favorita';
+            } else {
+                favoriteText.textContent = '🤍 Añadir a Favs';
+            }
+        } else {
+            alert('Error al actualizar favoritos. Inténtalo de nuevo.');
+        }
+    });
+</script>
 
 <div id="inicio" class="mt-6 ml-4 pb-10">
     <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#9933FF]">Inicio</a>
