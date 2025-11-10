@@ -1,58 +1,132 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Buscador por Palabras claves </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscar por Palabras Clave</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/styles.css">
+
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f5f5f5;
+        /* Estilos heredados para mantener el formato */
+        .header-wrapper {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            margin-bottom: 20px;
+            color: white;
         }
-
-        h1 {
-            font-size: 36px;
-            color: #333333;
-            margin-bottom: 20px; /* Agregamos margen inferior para separar del input */
+        .header-wrapper h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-right: 15px;
         }
-
-        form {
-            text-align: center;
+        .logo {
+            height: 50px; /* Ajusta el tamaño del logo */
         }
-
-        input[type="text"] {
+        .search-form {
+            display: flex;
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+        .search-form input {
+            flex-grow: 1;
             padding: 10px;
-            width: 300px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 18px;
-            margin-right: 10px;
+            border-radius: 6px 0 0 6px;
+            border: 1px solid #333;
+            background-color: #1a1a1a;
+            color: white;
         }
-
-        button[type="submit"] {
-            background-color: #0078d4;
+        .search-form button {
+            padding: 10px 20px;
+            border-radius: 0 6px 6px 0;
+            background-color: #7F00FF;
             color: white;
             border: none;
-            border-radius: 4px;
-            padding: 10px 20px;
-            font-size: 18px;
             cursor: pointer;
         }
-
-        button[type="submit"]:hover {
-            background-color: #0056b3;
+        /* Centramos el contenido principal */
+        #contenido-principal {
+            text-align: center;
+            padding-top: 50px;
         }
     </style>
 </head>
-<body>
-<h1>Buscar Peliculas por palabras claves</h1>
-<form action="/buscarpalabras" method="GET">
-    <input type="text" name="q" placeholder="Buscar películas por keywords..." />
-    <button type="submit">Buscar</button>
-</form>
+<body class="bg-[#111] font-['Roboto'] text-white">
+
+<div class="drawer drawer-mobile">
+    <input id="my-drawer-1" type="checkbox" class="drawer-toggle" />
+
+    <div class="drawer-content flex flex-col items-center p-4">
+
+        <div class="header-wrapper">
+            <h1>MovieWeb</h1>
+            <img src="/logo.png" class="logo" alt="logo" onerror="this.onerror=null; this.src='https://placehold.co/50x50/7F00FF/ffffff?text=MW'">
+        </div>
+
+        <div class="mb-8 flex justify-center w-full">
+            <% if (userId) { %>
+                <span class="text-white mr-4">¡Hola, Usuario <%= userId %>!</span>
+                <a href="/logout">
+                    <button class="btn btn-sm bg-red-600 text-white hover:bg-red-700 border-none">Cerrar Sesión</button>
+                </a>
+            <% } else { %>
+                <a href="/login">
+                    <button class="btn btn-sm bg-[#7F00FF] text-white hover:bg-[#5800BB] border-none">
+                        Iniciar sesión
+                    </button>
+                </a>
+            <% } %>
+            <a href="/search_keyword" class="ml-4">
+                <button class="btn btn-sm bg-[#3742fa] text-white hover:bg-[#2029bd] border-none">
+                    Buscar por palabra clave
+                </button>
+            </a>
+        </div>
+
+
+        <div id="contenido-principal" class="w-full max-w-7xl flex flex-col items-center">
+
+            <h2 class="text-3xl text-white font-bold mb-6 ml-2 border-l-4 border-yellow-400 pl-3">
+                🔍 Buscar Películas por Palabras Clave
+            </h2>
+
+            <form action="/buscarpalabras" method="GET" class="search-form">
+                <input type="text"
+                       name="q"
+                       placeholder="Ingresa una palabra clave, ej: 'pirata', 'espacio', 'dragón'..."
+                       value="<%= query || '' %>" />
+                <button type="submit">Buscar</button>
+            </form>
+
+            <div id="inicio" class="mt-10 ml-4 pb-10">
+                <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#5800BB]">Volver a Inicio</a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="drawer-side">
+        <label for="my-drawer-1" class="drawer-overlay"></label>
+        <ul class="menu min-h-full w-80 p-4 bg-black text-white">
+            <li><a href="/" class="text-lg font-bold hover:text-[#7F00FF]">Inicio</a></li>
+            <li><a href="#" class="hover:text-[#7F00FF]">Películas</a></li>
+            <li><a href="#" class="hover:text-[#7F00FF]">Actores</a></li>
+            <li><a href="#" class="hover:text-[#7F00FF]">Directores</a></li>
+            <li><a href="#" class="hover:text-[#7F00FF]">Categorías</a></li>
+            <% if (userId) { %>
+                <li class="mt-4"><a href="/logout" class="bg-red-600 text-white hover:bg-red-700">Cerrar Sesión</a></li>
+            <% } else { %>
+                <li class="mt-4"><a href="/login" class="bg-[#7F00FF] text-white hover:bg-[#5800BB]">Iniciar Sesión</a></li>
+            <% } %>
+        </ul>
+    </div>
+</div>
+
 </body>
 </html>

@@ -214,12 +214,8 @@ app.get('/buscar', async (req, res) => {
             SELECT * FROM keyword_in_movie WHERE keyword_name ILIKE $1;
         `, [searchTerm]);
 
-        const combined = [...movies.rows, ...keys.rows];
-        const unique = Array.from(new Map(combined.map(m => [m.movie_id, m])).values());
-
         res.render('resultado', {
-            movies: unique,
-            keys: keys.rows,
+            movies: movies.rows,
             actors: actors.rows,
             directors: directors.rows,
             userId: req.session.userId
@@ -229,6 +225,67 @@ app.get('/buscar', async (req, res) => {
         console.error(err);
         res.status(500).send('Error en la búsqueda.');
     }
+});
+app.get('/search_keyword', (req, res) => {
+    // 1. Resuelve 'query is not defined'
+    const searchTerm = req.query.q || '';
+
+    res.render('search_keyword', {
+        query: searchTerm,
+        userId: req.session.userId // (u otras variables globales que uses)
+    });
+});
+// Asegúrate de tener tu cliente de PostgreSQL importado y conectado, ej:
+// const pool = require('./db_config');
+
+// --- RUTA 2: Procesa la búsqueda y muestra los resultados ---
+// --- RUTA 2: Procesa la búsqueda y muestra los resultados ---
+app.get('/buscarpalabras', async (req, res) => {
+    // Captura el término de búsqueda de la URL (?q=...)
+    const queryTerm = req.query.q;
+
+    // Si no hay término de búsqueda, redireccionamos o mostramos el formulario
+    if (!queryTerm) {
+        return res.redirect('/search_keyword');
+    }
+
+    // Adaptamos el término para búsqueda LIKE: %keyword%
+    const searchTerm = `%${queryTerm.toLowerCase()}%`;
+
+    // La consulta SQL que proporcionaste, adaptada para buscar y evitar duplicados
+    const sqlQuery = `
+        -- Selecciona campos distintivos de la película
+        SELECT DISTINCT ON (m.movie_id)
+            m.movie_id,
+            m.title,
+            m.poster_url,
+            m.vote_average 
+        FROM movies.movie m
+        JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
+        JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
+        WHERE LOWER(k.keyword_name) LIKE $1
+        ORDER BY m.movie_id, m.release_date DESC;
+    `;
+
+    let movies = [];
+
+    try {
+        // Ejecución de la consulta SQL (CORRECCIÓN: Se usa 'db' en lugar de 'pool')
+        const result = await db.query(sqlQuery, [searchTerm]);
+        movies = result.rows;
+
+    } catch (error) {
+        console.error('Error al buscar películas por palabra clave:', error);
+        // Si hay un error, puedes devolver 500 para informar al usuario
+        return res.status(500).send('Error interno del servidor al consultar la base de datos.');
+    }
+
+    // Renderiza la vista de resultados (la EJS que proporcionaste)
+    res.render('resultados_keyword', {
+        movies: movies,
+        query: queryTerm, // Pasamos el término de búsqueda para mostrarlo en el título
+        userId: req.session.userId // Asegúrate de tener userId si lo usas
+    });
 });
 
 // DETALLE PELÍCULA

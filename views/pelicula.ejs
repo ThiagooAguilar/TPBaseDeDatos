@@ -1,64 +1,126 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <title><%= movie.title %></title>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
+
+    <style>
+        /* Estilo para el ancho fijo de las tarjetas de personas */
+        .person-card {
+            width: 140px; /* Ancho para las tarjetas de elenco/crew */
+            height: auto;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-[#111] text-white font-['Roboto'] p-6">
 
 <%
-// --- LÓGICA PARA FORMATEAR LA FECHA ---
-// 1. Creamos un array con los nombres de los meses en español
+// --- LÓGICA PARA FORMATEAR LA FECHA (SE MANTIENE) ---
 const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-// 2. 'movie.release_date' ya es un objeto Date
 const date = new Date(movie.release_date);
-
-// 3. Extraer las partes de la fecha
 const day = date.getDate();
-const month = monthNames[date.getMonth()]; // getMonth() es 0-11
+const month = monthNames[date.getMonth()];
 const year = date.getFullYear();
-
-// 4. String con el formato final
 const formattedDate = `${day}-${month}-${year}`;
 %>
 
-<h1><%= movie.title %></h1>
-<p><strong>Fecha:</strong> <%= formattedDate %></p>
-<h3>Directores</h3>
-<ul>
-    <% movie.directors.forEach((director) => { %>
-        <li>
-            <a href="/director/<%= director.crew_member_id %>"><%= director.crew_member_name %></a>
-        </li>
-    <% }); %>
-</ul>
-<h3>Escritores</h3>
-<ul>
-    <% movie.writers.forEach((writer) => { %>
-        <li>
-            <%= writer.crew_member_name %>
-        </li>
-    <% }); %>
-</ul>
-<h3>Argumento</h3>
-<div id="overview"><p><%= movie.overview %></p></div>
-<h3>Elenco</h3>
-<ul>
-    <% movie.cast.sort((a, b) => a.cast_order - b.cast_order).forEach((actor) => { %>
-        <li><a href="/actor/<%= actor.actor_id %>"><%= actor.actor_name %></a> - <%= actor.character_name %></li>
-    <% }); %>
-</ul>
-<h3>Equipo técnico</h3>
-<ul>
-    <% movie.crew.forEach((crewMember) => { %>
-        <li>
-            <%= crewMember.crew_member_name %> - <%= crewMember.department_name %>
-            (<%= crewMember.job %>)
-        </li>
-    <% }); %>
-</ul>
-<p></p>
-<div id="inicio"><a href="/">Inicio</a></div>
+<div class="flex flex-col md:flex-row gap-8 mb-10">
+    <div class="flex-shrink-0 w-full md:w-64 max-w-sm mx-auto md:mx-0">
+        <img src="<%= movie.poster_url %>"
+             alt="Póster de <%= movie.title %>"
+             class="rounded-lg shadow-2xl w-full object-cover"
+             onerror="this.onerror=null;this.src='https://placehold.co/300x450/222/ffffff?text=Póster+No+Disp.'" />
+    </div>
+
+    <div class="flex-grow">
+        <h1 class="text-5xl text-[#7F00FF] font-extrabold mb-3"><%= movie.title %></h1>
+
+        <% if (movie.rating) { %>
+            <div class="badge badge-warning text-lg font-bold mb-4 p-3">
+                ⭐ <%= Number(movie.rating).toFixed(1) %>
+            </div>
+        <% } %>
+
+        <p class="text-lg mb-4"><strong>Fecha de Estreno:</strong> <%= formattedDate %></p>
+
+        <h3 class="text-3xl text-white mt-8 mb-3">Argumento</h3>
+        <div id="overview" class="text-gray-300 leading-relaxed">
+            <p><%= movie.overview %></p>
+        </div>
+    </div>
+</div>
+
+<% const renderPersonCarousel = (people, title, linkPrefix, roleLabel, roleClass) => { %>
+    <h2 class="text-3xl text-white my-6 ml-4"><%= title %></h2>
+    <% if (people.length === 0) { %>
+        <p class="ml-4">No se encontraron <%= title.toLowerCase() %>.</p>
+    <% } else { %>
+        <div class="flex flex-row overflow-x-auto gap-4 px-4 pb-6">
+            <% people.forEach((person) => { %>
+                <a href="<%= linkPrefix %>/<%= person.actor_id || person.crew_member_id %>"
+                   class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0"
+                   title="<%= person.actor_name || person.crew_member_name %>">
+                    <div class="card bg-[#222] person-card shadow-md">
+                        <figure class="h-40"> <img src="<%= person.profile_url %>"
+                                                   alt="<%= person.actor_name || person.crew_member_name %>"
+                                                   class="h-full w-full object-cover rounded-t-lg"
+                                                   onerror="this.onerror=null;this.src='https://placehold.co/140x210/222/ffffff?text=Perfil+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3 flex flex-col justify-between">
+                            <h4 class="card-title text-white text-sm truncate" title="<%= person.actor_name || person.crew_member_name %>">
+                                <%= person.actor_name || person.crew_member_name %>
+                            </h4>
+                            <% if (roleLabel) { %>
+                                <div class="badge <%= roleClass %> text-xs font-bold mt-1">
+                                    <%= roleLabel %>
+                                </div>
+                            <% } %>
+                            <% if (person.character_name) { %>
+                                <p class="text-gray-400 text-xs mt-1 truncate" title="<%= person.character_name %>">
+                                    como <%= person.character_name %>
+                                </p>
+                            <% } %>
+                        </div>
+                    </div>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
+<% } %>
+
+<% renderPersonCarousel(movie.directors, 'Directores', '/director', 'Director', 'badge-error') %>
+
+<% renderPersonCarousel(movie.writers, 'Escritores', '/writer', 'Escritor', 'badge-info') %>
+
+<%
+// Ordenamos el elenco antes de pasarlo al carrusel
+const orderedCast = movie.cast.sort((a, b) => a.cast_order - b.cast_order);
+%>
+<% renderPersonCarousel(orderedCast, 'Elenco', '/actor', null, null) %>
+
+
+<h3 class="text-3xl text-white my-6 ml-4">Equipo técnico</h3>
+<% if (movie.crew.length === 0) { %>
+    <p class="ml-4">No se encontró más equipo técnico.</p>
+<% } else { %>
+    <div class="ml-4 pb-6">
+        <ul class="list-disc list-inside space-y-2 text-gray-300">
+            <% movie.crew.forEach((crewMember) => { %>
+                <li>
+                    <span class="text-white font-semibold"><%= crewMember.crew_member_name %></span> -
+                    <%= crewMember.department_name %> (<span class="text-[#7F00FF]"><%= crewMember.job %></span>)
+                </li>
+            <% }); %>
+        </ul>
+    </div>
+<% } %>
+
+<div id="inicio" class="mt-6 ml-4 pb-10">
+    <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#9933FF]">Inicio</a>
+</div>
+
 </body>
 </html>
