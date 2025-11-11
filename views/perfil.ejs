@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Mi Perfil - <%= user.user_name %></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="bg-[#111] text-white font-['Roboto'] min-h-screen">
+
+<!-- Header con navegación -->
+<div class="navbar bg-[#222] shadow-lg sticky top-0 z-50">
+    <div class="flex-1">
+        <a href="/" class="btn btn-ghost normal-case text-2xl text-[#7F00FF]">🎬 CineApp</a>
+    </div>
+    <div class="flex-none gap-2">
+        <a href="/" class="btn btn-ghost">🏠 Inicio</a>
+        <a href="/logout" class="btn btn-error">🚪 Cerrar Sesión</a>
+    </div>
+</div>
+
+<div class="container mx-auto p-6">
+
+    <!-- Información del Usuario -->
+    <div class="bg-[#222] rounded-lg p-8 mb-8 shadow-2xl">
+        <div class="flex items-center gap-6">
+            <div class="avatar placeholder">
+                <div class="bg-[#7F00FF] text-white rounded-full w-24">
+                    <span class="text-4xl"><%= user.user_name.charAt(0).toUpperCase() %></span>
+                </div>
+            </div>
+            <div>
+                <h1 class="text-4xl font-bold text-[#7F00FF] mb-2"><%= user.user_name %></h1>
+                <p class="text-gray-400 text-lg">@<%= user.user_username %></p>
+                <p class="text-gray-400"><%= user.user_email %></p>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats stats-vertical lg:stats-horizontal shadow mt-6 bg-[#333] w-full">
+            <div class="stat">
+                <div class="stat-title text-gray-400">Películas Calificadas</div>
+                <div class="stat-value text-[#7F00FF]"><%= ratings.length %></div>
+            </div>
+            <div class="stat">
+                <div class="stat-title text-gray-400">Reseñas Escritas</div>
+                <div class="stat-value text-[#7F00FF]"><%= reviews.length %></div>
+            </div>
+            <div class="stat">
+                <div class="stat-title text-gray-400">Películas Favoritas</div>
+                <div class="stat-value text-[#7F00FF]"><%= favorites.length %></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs para organizar el contenido -->
+    <div class="tabs tabs-boxed bg-[#222] mb-6">
+        <a class="tab tab-active" onclick="showTab('ratings')">⭐ Mis Calificaciones</a>
+        <a class="tab" onclick="showTab('reviews')">📝 Mis Reseñas</a>
+        <a class="tab" onclick="showTab('favorites')">❤️ Mis Favoritas</a>
+    </div>
+
+    <!-- Tab: Mis Calificaciones -->
+    <div id="tab-ratings" class="tab-content">
+        <h2 class="text-3xl font-bold mb-6 text-white">⭐ Mis Calificaciones</h2>
+
+        <% if (ratings.length === 0) { %>
+            <div class="alert alert-info">
+                <span>Aún no has calificado ninguna película. ¡Empieza a explorar!</span>
+            </div>
+        <% } else { %>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <% ratings.forEach(item => { %>
+                    <a href="/pelicula/<%= item.movie_id %>" class="card bg-[#222] shadow-xl hover:scale-105 transition duration-300">
+                        <figure class="relative">
+                            <img src="<%= item.poster_url %>"
+                                 alt="<%= item.title %>"
+                                 class="w-full h-80 object-cover"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/300x450/222/ffffff?text=Poster+No+Disp.'" />
+                            <div class="absolute top-2 right-2 badge badge-warning font-bold text-lg p-3">
+                                ⭐ <%= item.rating %>
+                            </div>
+                        </figure>
+                        <div class="card-body p-4">
+                            <h3 class="card-title text-sm text-white truncate" title="<%= item.title %>">
+                                <%= item.title %>
+                            </h3>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- Tab: Mis Reseñas -->
+    <div id="tab-reviews" class="tab-content hidden">
+        <h2 class="text-3xl font-bold mb-6 text-white">📝 Mis Reseñas</h2>
+
+        <% if (reviews.length === 0) { %>
+            <div class="alert alert-info">
+                <span>Aún no has escrito ninguna reseña. ¡Comparte tu opinión!</span>
+            </div>
+        <% } else { %>
+            <div class="space-y-6">
+                <% reviews.forEach(item => { %>
+                    <div class="card bg-[#222] shadow-xl">
+                        <div class="card-body">
+                            <div class="flex gap-4">
+                                <a href="/pelicula/<%= item.movie_id %>" class="flex-shrink-0">
+                                    <img src="<%= item.poster_url %>"
+                                         alt="<%= item.title %>"
+                                         class="w-24 h-36 object-cover rounded-lg"
+                                         onerror="this.onerror=null;this.src='https://placehold.co/100x150/222/ffffff?text=Poster'" />
+                                </a>
+                                <div class="flex-grow">
+                                    <a href="/pelicula/<%= item.movie_id %>" class="card-title text-[#7F00FF] hover:text-[#9933FF] mb-2">
+                                        <%= item.title %>
+                                    </a>
+                                    <% if (item.rating) { %>
+                                        <div class="badge badge-warning mb-3">⭐ <%= item.rating %></div>
+                                    <% } %>
+                                    <p class="text-gray-300 leading-relaxed"><%= item.opinion %></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+
+    <!-- Tab: Mis Favoritas -->
+    <div id="tab-favorites" class="tab-content hidden">
+        <h2 class="text-3xl font-bold mb-6 text-white">❤️ Mis Películas Favoritas</h2>
+
+        <% if (favorites.length === 0) { %>
+            <div class="alert alert-info">
+                <span>Aún no has marcado ninguna película como favorita. ¡Encuentra tus favoritas!</span>
+            </div>
+        <% } else { %>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <% favorites.forEach(item => { %>
+                    <a href="/pelicula/<%= item.movie_id %>" class="card bg-[#222] shadow-xl hover:scale-105 transition duration-300">
+                        <figure class="relative">
+                            <img src="<%= item.poster_url %>"
+                                 alt="<%= item.title %>"
+                                 class="w-full h-80 object-cover"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/300x450/222/ffffff?text=Poster+No+Disp.'" />
+                            <div class="absolute top-2 right-2 badge badge-error font-bold text-lg p-3">
+                                ❤️
+                            </div>
+                            <% if (item.rating) { %>
+                                <div class="absolute top-2 left-2 badge badge-warning font-bold p-2">
+                                    ⭐ <%= item.rating %>
+                                </div>
+                            <% } %>
+                        </figure>
+                        <div class="card-body p-4">
+                            <h3 class="card-title text-sm text-white truncate" title="<%= item.title %>">
+                                <%= item.title %>
+                            </h3>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+
+</div>
+
+<script>
+    function showTab(tabName) {
+        // Ocultar todos los tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+
+        // Remover clase active de todos los botones
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.classList.remove('tab-active');
+        });
+
+        // Mostrar el tab seleccionado
+        document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+        // Activar el botón correspondiente
+        event.target.classList.add('tab-active');
+    }
+</script>
+
+</body>
+</html>

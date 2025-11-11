@@ -1,64 +1,491 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title><%= movie.title %></title>
+    <title><%= movie.title %> - CineApp</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
+
+    <style>
+        .person-card {
+            width: 140px;
+            height: auto;
+        }
+
+        .hero-backdrop {
+            background: linear-gradient(to bottom, rgba(17,17,17,0.7), rgba(17,17,17,0.95)),
+            url('<%= movie.backdrop_url %>');
+            background-size: cover;
+            background-position: center;
+        }
+    </style>
 </head>
-<body>
+<body class="bg-[#111] text-white font-['Roboto']">
+
+<!-- Navbar -->
+<div class="navbar bg-[#222] shadow-lg sticky top-0 z-50">
+    <div class="flex-1">
+        <a href="/" class="btn btn-ghost normal-case text-2xl text-[#7F00FF]">🎬 CineApp</a>
+    </div>
+    <div class="flex-none gap-2">
+        <form action="/buscar" method="GET" class="form-control hidden md:block">
+            <input type="text" name="q" placeholder="Buscar películas..."
+                   class="input input-bordered input-sm bg-[#333] text-white w-64" />
+        </form>
+        <% if (locals.current_user_id) { %>
+            <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+                    <div class="w-10 rounded-full bg-[#7F00FF] flex items-center justify-center">
+                        <span class="text-white font-bold">U</span>
+                    </div>
+                </label>
+                <ul tabindex="0" class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-[#222] rounded-box w-52">
+                    <li><a href="/perfil" class="text-white hover:bg-[#7F00FF]">👤 Mi Perfil</a></li>
+                    <li><a href="/logout" class="text-white hover:bg-error">🚪 Cerrar Sesión</a></li>
+                </ul>
+            </div>
+        <% } else { %>
+            <a href="/login" class="btn btn-primary bg-[#7F00FF] border-0">Iniciar Sesión</a>
+        <% } %>
+    </div>
+</div>
 
 <%
-// --- LÓGICA PARA FORMATEAR LA FECHA ---
-// 1. Creamos un array con los nombres de los meses en español
+// Formatear fecha
 const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-
-// 2. 'movie.release_date' ya es un objeto Date
 const date = new Date(movie.release_date);
-
-// 3. Extraer las partes de la fecha
 const day = date.getDate();
-const month = monthNames[date.getMonth()]; // getMonth() es 0-11
+const month = monthNames[date.getMonth()];
 const year = date.getFullYear();
-
-// 4. String con el formato final
 const formattedDate = `${day}-${month}-${year}`;
+
+// Formatear presupuesto y recaudación
+const formatMoney = (amount) => {
+    if (!amount || amount === 0) return 'No disponible';
+    return '$' + (amount / 1000000).toFixed(1) + 'M';
+};
+
+// Formatear duración
+const formatRuntime = (minutes) => {
+    if (!minutes) return 'No disponible';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}min`;
+};
 %>
 
-<h1><%= movie.title %></h1>
-<p><strong>Fecha:</strong> <%= formattedDate %></p>
-<h3>Directores</h3>
-<ul>
-    <% movie.directors.forEach((director) => { %>
-        <li>
-            <a href="/director/<%= director.crew_member_id %>"><%= director.crew_member_name %></a>
-        </li>
-    <% }); %>
-</ul>
-<h3>Escritores</h3>
-<ul>
-    <% movie.writers.forEach((writer) => { %>
-        <li>
-            <%= writer.crew_member_name %>
-        </li>
-    <% }); %>
-</ul>
-<h3>Argumento</h3>
-<div id="overview"><p><%= movie.overview %></p></div>
-<h3>Elenco</h3>
-<ul>
-    <% movie.cast.sort((a, b) => a.cast_order - b.cast_order).forEach((actor) => { %>
-        <li><a href="/actor/<%= actor.actor_id %>"><%= actor.actor_name %></a> - <%= actor.character_name %></li>
-    <% }); %>
-</ul>
-<h3>Equipo técnico</h3>
-<ul>
-    <% movie.crew.forEach((crewMember) => { %>
-        <li>
-            <%= crewMember.crew_member_name %> - <%= crewMember.department_name %>
-            (<%= crewMember.job %>)
-        </li>
-    <% }); %>
-</ul>
-<p></p>
-<div id="inicio"><a href="/">Inicio</a></div>
+<!-- Hero Section con Backdrop -->
+<div class="hero-backdrop min-h-96">
+    <div class="container mx-auto p-6">
+        <div class="flex flex-col md:flex-row gap-8 mb-10">
+            <!-- Poster -->
+            <div class="flex-shrink-0 w-full md:w-64 max-w-sm mx-auto md:mx-0">
+                <img src="<%= movie.poster_url %>"
+                     alt="Póster de <%= movie.title %>"
+                     class="rounded-lg shadow-2xl w-full object-cover"
+                     onerror="this.onerror=null;this.src='https://placehold.co/300x450/222/ffffff?text=Póster+No+Disp.'" />
+            </div>
+
+            <!-- Información Principal -->
+            <div class="flex-grow">
+                <h1 class="text-5xl text-[#7F00FF] font-extrabold mb-3"><%= movie.title %></h1>
+
+                <% if (movie.original_title && movie.original_title !== movie.title) { %>
+                    <p class="text-xl text-gray-400 italic mb-3"><%= movie.original_title %></p>
+                <% } %>
+
+                <% if (movie.tagline) { %>
+                    <p class="text-lg text-gray-300 italic mb-4">"<%= movie.tagline %>"</p>
+                <% } %>
+
+                <!-- Badges de info -->
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <% if (movie.vote_average) { %>
+                        <div class="badge badge-warning text-lg font-bold p-3">
+                            ⭐ <%= Number(movie.vote_average).toFixed(1) %> (<%= movie.vote_count %> votos)
+                        </div>
+                    <% } %>
+                    <% if (movie.status) { %>
+                        <div class="badge badge-success text-sm p-3"><%= movie.status %></div>
+                    <% } %>
+                    <% if (movie.runtime) { %>
+                        <div class="badge badge-info text-sm p-3">⏱️ <%= formatRuntime(movie.runtime) %></div>
+                    <% } %>
+                </div>
+
+                <!-- Géneros -->
+                <% if (movie.genres && movie.genres.length > 0) { %>
+                    <div class="mb-4">
+                        <strong class="text-white">Géneros:</strong>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <% movie.genres.forEach(genre => { %>
+                                <span class="badge badge-outline badge-lg"><%= genre.genre_name %></span>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <p class="text-lg mb-2"><strong>Fecha de Estreno:</strong> <%= formattedDate %></p>
+
+                <!-- Países -->
+                <% if (movie.countries && movie.countries.length > 0) { %>
+                    <p class="text-lg mb-2">
+                        <strong>País:</strong>
+                        <%= movie.countries.map(c => c.country_name).join(', ') %>
+                    </p>
+                <% } %>
+
+                <!-- Idiomas -->
+                <% if (movie.languages && movie.languages.length > 0) { %>
+                    <p class="text-lg mb-4">
+                        <strong>Idiomas:</strong>
+                        <%= movie.languages.map(l => l.language_name).join(', ') %>
+                    </p>
+                <% } %>
+
+                <!-- Presupuesto y Recaudación -->
+                <div class="stats stats-vertical lg:stats-horizontal shadow bg-[#222] mb-4">
+                    <div class="stat">
+                        <div class="stat-title text-gray-400">Presupuesto</div>
+                        <div class="stat-value text-[#7F00FF] text-2xl"><%= formatMoney(movie.budget) %></div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title text-gray-400">Recaudación</div>
+                        <div class="stat-value text-green-500 text-2xl"><%= formatMoney(movie.revenue) %></div>
+                    </div>
+                    <% if (movie.popularity) { %>
+                        <div class="stat">
+                            <div class="stat-title text-gray-400">Popularidad</div>
+                            <div class="stat-value text-yellow-500 text-2xl">
+                                <%= movie.popularity ? Number(movie.popularity).toFixed(1) : 'N/A' %>
+                            </div>
+
+                        </div>
+                    <% } %>
+                </div>
+
+                <!-- Homepage -->
+                <% if (movie.homepage_url) { %>
+                    <a href="<%= movie.homepage_url %>" target="_blank"
+                       class="btn btn-outline btn-primary btn-sm">
+                        🌐 Sitio Web Oficial
+                    </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contenido Principal -->
+<div class="container mx-auto p-6">
+
+    <!-- Sinopsis -->
+    <div class="mb-10">
+        <h3 class="text-3xl text-white font-bold mb-3">📖 Sinopsis</h3>
+        <div class="bg-[#222] p-6 rounded-lg">
+            <p class="text-gray-300 leading-relaxed text-lg">
+                <%= movie.overview || 'No hay sinopsis disponible.' %>
+            </p>
+        </div>
+    </div>
+
+    <!-- Directores -->
+    <% if (movie.directors && movie.directors.length > 0) { %>
+        <div class="mb-8">
+            <h2 class="text-3xl text-white font-bold mb-4">🎬 Dirección</h2>
+            <div class="flex flex-row overflow-x-auto gap-4 pb-6">
+                <% movie.directors.forEach(director => { %>
+                    <a href="/director/<%= director.person_id %>"
+                       class="hover:scale-105 transition duration-300 transform flex-shrink-0">
+                        <div class="card bg-[#222] person-card shadow-md">
+                            <figure class="h-40">
+                                <img src="<%= director.profile_url %>"
+                                     alt="<%= director.person_name %>"
+                                     class="h-full w-full object-cover rounded-t-lg"
+                                     onerror="this.onerror=null;this.src='https://placehold.co/140x210/222/ffffff?text=Sin+Foto'" />
+                            </figure>
+                            <div class="card-body p-3">
+                                <h4 class="card-title text-white text-sm truncate">
+                                    <%= director.person_name %>
+                                </h4>
+                                <div class="badge badge-error text-xs font-bold">Director</div>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Escritores -->
+    <% if (movie.writers && movie.writers.length > 0) { %>
+        <div class="mb-8">
+            <h2 class="text-3xl text-white font-bold mb-4">✍️ Guión</h2>
+            <div class="flex flex-row overflow-x-auto gap-4 pb-6">
+                <% movie.writers.forEach(writer => { %>
+                    <a href="/writer/<%= writer.person_id %>"
+                       class="hover:scale-105 transition duration-300 transform flex-shrink-0">
+                        <div class="card bg-[#222] person-card shadow-md">
+                            <figure class="h-40">
+                                <img src="<%= writer.profile_url %>"
+                                     alt="<%= writer.person_name %>"
+                                     class="h-full w-full object-cover rounded-t-lg"
+                                     onerror="this.onerror=null;this.src='https://placehold.co/140x210/222/ffffff?text=Sin+Foto'" />
+                            </figure>
+                            <div class="card-body p-3">
+                                <h4 class="card-title text-white text-sm truncate">
+                                    <%= writer.person_name %>
+                                </h4>
+                                <div class="badge badge-info text-xs font-bold">Escritor</div>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Elenco -->
+    <% if (movie.cast && movie.cast.length > 0) { %>
+        <div class="mb-8">
+            <h2 class="text-3xl text-white font-bold mb-4">🎭 Elenco Principal</h2>
+            <div class="flex flex-row overflow-x-auto gap-4 pb-6">
+                <% movie.cast.forEach(actor => { %>
+                    <a href="/actor/<%= actor.person_id %>"
+                       class="hover:scale-105 transition duration-300 transform flex-shrink-0">
+                        <div class="card bg-[#222] person-card shadow-md">
+                            <figure class="h-40">
+                                <img src="<%= actor.profile_url %>"
+                                     alt="<%= actor.person_name %>"
+                                     class="h-full w-full object-cover rounded-t-lg"
+                                     onerror="this.onerror=null;this.src='https://placehold.co/140x210/222/ffffff?text=Sin+Foto'" />
+                            </figure>
+                            <div class="card-body p-3">
+                                <h4 class="card-title text-white text-sm truncate">
+                                    <%= actor.person_name %>
+                                </h4>
+                                <% if (actor.character_name) { %>
+                                    <p class="text-gray-400 text-xs truncate">
+                                        como <%= actor.character_name %>
+                                    </p>
+                                <% } %>
+                            </div>
+                        </div>
+                    </a>
+                <% }) %>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Compañías Productoras -->
+    <% if (movie.companies && movie.companies.length > 0) { %>
+        <div class="mb-8">
+            <h3 class="text-2xl text-white font-bold mb-3">🏢 Compañías Productoras</h3>
+            <div class="bg-[#222] p-4 rounded-lg">
+                <div class="flex flex-wrap gap-2">
+                    <% movie.companies.forEach(company => { %>
+                        <span class="badge badge-lg badge-ghost"><%= company.company_name %></span>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Palabras Clave -->
+    <% if (movie.keywords && movie.keywords.length > 0) { %>
+        <div class="mb-8">
+            <h3 class="text-2xl text-white font-bold mb-3">🏷️ Palabras Clave</h3>
+            <div class="bg-[#222] p-4 rounded-lg">
+                <div class="flex flex-wrap gap-2">
+                    <% movie.keywords.forEach(keyword => { %>
+                        <a href="/buscarpalabras?q=<%= keyword.keyword_name %>"
+                           class="badge badge-lg badge-outline hover:badge-primary">
+                            <%= keyword.keyword_name %>
+                        </a>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    <% } %>
+
+    <!-- Equipo Técnico -->
+    <% if (movie.crew && movie.crew.length > 0) { %>
+        <div class="mb-8">
+            <h3 class="text-2xl text-white font-bold mb-3">🎥 Equipo Técnico</h3>
+            <div class="bg-[#222] p-6 rounded-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <% movie.crew.forEach(member => { %>
+                        <div class="text-gray-300">
+                            <span class="text-white font-semibold"><%= member.person_name %></span> -
+                            <%= member.department_name %>
+                            (<span class="text-[#7F00FF]"><%= member.job %></span>)
+                        </div>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+    <% } %>
+
+    <div class="divider"></div>
+
+    <!-- Sección de Interacción del Usuario -->
+    <div class="mb-10">
+        <h3 class="text-3xl text-white font-bold mb-4">🎬 Tu Puntuación y Opinión</h3>
+        <div class="p-6 bg-[#222] rounded-lg shadow-xl border border-gray-700 max-w-4xl mx-auto">
+            <form id="interaction-form" onsubmit="handleInteraction(event)">
+                <input type="hidden" id="user_id" name="user_id" value="<%= current_user_id %>">
+                <input type="hidden" id="movie_id" name="movie_id" value="<%= movie.movie_id %>">
+
+                <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                    <div class="form-control w-full sm:w-1/3">
+                        <label class="label">
+                            <span class="label-text text-white font-bold">Tu Puntuación (1-10):</span>
+                        </label>
+                        <input type="number" id="rating" name="rating" min="1" max="10" step="0.1"
+                               placeholder="Ej: 8.5"
+                               value="<%= movie_user_data.rating || '' %>"
+                               class="input input-bordered bg-[#333] border-[#7F00FF] w-full text-white" />
+                    </div>
+
+                    <div class="tooltip tooltip-bottom mt-6 sm:mt-0" data-tip="Añadir/Quitar de Favoritos">
+                        <button type="button" id="favorite-btn"
+                                class="btn btn-lg w-full sm:w-auto <%= movie_user_data.favorite ? 'btn-error' : 'btn-outline btn-warning' %>">
+                            <span id="favorite-text"><%= movie_user_data.favorite ? '❤️ Favorita' : '🤍 Añadir a Favs' %></span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-control mb-6">
+                    <label class="label">
+                        <span class="label-text text-white font-bold">Tu Opinión/Reseña:</span>
+                    </label>
+                    <textarea id="opinion" name="opinion"
+                              placeholder="Escribe tu reseña sobre esta película..."
+                              class="textarea textarea-bordered h-32 bg-[#333] border-[#7F00FF] text-white"><%= movie_user_data.opinion || '' %></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-block bg-[#7F00FF] border-0 hover:bg-[#9933FF] text-white font-bold">
+                    💾 Guardar Puntuación y Opinión
+                </button>
+                <div id="save-message" class="mt-3 text-center text-sm font-bold hidden"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="text-center pb-10">
+        <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#9933FF] btn-lg">
+            🏠 Volver al Inicio
+        </a>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const saveMessage = document.getElementById('save-message');
+        const favoriteBtn = document.getElementById('favorite-btn');
+        const favoriteText = document.getElementById('favorite-text');
+
+        window.handleInteraction = async function(event) {
+            event.preventDefault();
+
+            const userId = document.getElementById('user_id').value;
+            const movieId = document.getElementById('movie_id').value;
+            const rating = document.getElementById('rating').value;
+            const opinion = document.getElementById('opinion').value;
+
+            if (!userId || !movieId) {
+                saveMessage.textContent = '❌ Error: Falta información del usuario o película.';
+                saveMessage.classList.remove('hidden', 'text-success');
+                saveMessage.classList.add('text-error');
+                return;
+            }
+
+            saveMessage.classList.add('hidden');
+            saveMessage.classList.remove('text-success', 'text-error');
+
+            const data = {
+                user_id: parseInt(userId),
+                movie_id: parseInt(movieId),
+                rating: rating ? parseFloat(rating) : null,
+                opinion: opinion.trim() || null,
+            };
+
+            try {
+                const response = await fetch('/api/movie-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    saveMessage.textContent = '✅ Puntuación y Opinión guardadas correctamente.';
+                    saveMessage.classList.remove('hidden');
+                    saveMessage.classList.add('text-success');
+                } else {
+                    const errorData = await response.json();
+                    saveMessage.textContent = `❌ Error: ${errorData.error || 'Error desconocido'}`;
+                    saveMessage.classList.remove('hidden');
+                    saveMessage.classList.add('text-error');
+                }
+            } catch (error) {
+                console.error('Error de red:', error);
+                saveMessage.textContent = '❌ Error de conexión.';
+                saveMessage.classList.remove('hidden');
+                saveMessage.classList.add('text-error');
+            }
+
+            setTimeout(() => saveMessage.classList.add('hidden'), 5000);
+        }
+
+        favoriteBtn.addEventListener('click', async () => {
+            const isFavorite = favoriteBtn.classList.contains('btn-error');
+            const newFavoriteState = !isFavorite;
+
+            const userId = document.getElementById('user_id').value;
+            const movieId = document.getElementById('movie_id').value;
+
+            if (!userId || !movieId) {
+                alert('❌ Error: Falta información del usuario o película.');
+                return;
+            }
+
+            const data = {
+                user_id: parseInt(userId),
+                movie_id: parseInt(movieId),
+                favorite: newFavoriteState
+            };
+
+            try {
+                const response = await fetch('/api/movie-user/favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    favoriteBtn.classList.toggle('btn-error');
+                    favoriteBtn.classList.toggle('btn-outline');
+                    favoriteBtn.classList.toggle('btn-warning');
+
+                    if (newFavoriteState) {
+                        favoriteText.textContent = '❤️ Favorita';
+                    } else {
+                        favoriteText.textContent = '🤍 Añadir a Favs';
+                    }
+                } else {
+                    const errorData = await response.json();
+                    alert(`❌ Error: ${errorData.error || 'Error al actualizar favoritos'}`);
+                }
+            } catch (error) {
+                console.error('Error de red:', error);
+                alert('❌ Error de conexión. Inténtalo de nuevo.');
+            }
+        });
+    });
+</script>
+
 </body>
 </html>

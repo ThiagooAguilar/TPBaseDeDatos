@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buscar por Palabras Clave</title>
+    <title>Buscar perfiles</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
@@ -43,7 +43,7 @@
             color: white;
         }
         .search-form button {
-            padding: 10px 20px
+            padding: 10px 20px;
             border-radius: 0 6px 6px 0;
             background-color: #7F00FF;
             color: white;
@@ -71,7 +71,6 @@
 
         <div class="mb-8 flex justify-center w-full">
             <% if (userId) { %>
-                <span class="text-white mr-4">¡Hola, Usuario <%= userId %>!</span>
                 <a href="/logout">
                     <button class="btn btn-sm bg-red-600 text-white hover:bg-red-700 border-none">Cerrar Sesión</button>
                 </a>
@@ -82,9 +81,9 @@
                     </button>
                 </a>
             <% } %>
-            <a href="/search_keyword" class="ml-4">
+            <a href="/search_profile" class="ml-4">
                 <button class="btn btn-sm bg-[#3742fa] text-white hover:bg-[#2029bd] border-none">
-                    Buscar por palabra clave
+                    Buscar perfil
                 </button>
             </a>
         </div>
@@ -93,14 +92,14 @@
         <div id="contenido-principal" class="w-full max-w-7xl flex flex-col items-center">
 
             <h2 class="text-3xl text-white font-bold mb-6 ml-2 border-l-4 border-yellow-400 pl-3">
-                🔍 Buscar Películas por Palabras Clave
+                🔍 Buscar perfiles por mail o nombre de usuario
             </h2>
 
-            <form action="/buscarpalabras" method="GET" class="search-form">
+            <form action="/buscarperfiles" method="GET" class="search-form">
                 <input type="text"
-                        name="q"
-                        placeholder="Ingresa una palabra clave, ej: 'pirata', 'espacio', 'dragón'..."
-                        value="<%= query || '' %>" />
+                       name="q"
+                       placeholder="Ingresa un mail o un nombre de usuario"
+                       value="<%= query || '' %>" />
                 <button type="submit">Buscar</button>
             </form>
 

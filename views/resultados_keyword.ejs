@@ -1,20 +1,75 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Resultados</title>
-</head>
-<body>
-<h1>Resultados de la búsqueda</h1>
 
-<% if (keys.length === 0) { %>
-    <p>No se encontraron resultados.</p>
-<% } else { %>
-    <ul>
-        <% keys.forEach(movie => { %>
-            <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %></a></li>
-        <% }) %>
-    </ul>
-<% } %>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados de Palabras Clave</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/styles.css">
+
+    <style>
+        /* Estilo para el ancho fijo de las tarjetas de películas en el carrusel */
+        .movie-card {
+            width: 180px; /* Ancho fijo para las miniaturas */
+        }
+        /* Estilo para ocultar la barra de desplazamiento en el carrusel */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-[#111] text-white font-['Roboto'] p-6">
+
+<div class="max-w-7xl mx-auto">
+
+    <h1 class="text-4xl text-[#7F00FF] font-extrabold mb-8 border-l-4 border-yellow-400 pl-4">
+        🎬 Resultados de la Búsqueda por Palabras Clave
+    </h1>
+
+    <% if (movies.length === 0) { %>
+        <p class="text-lg text-gray-400 ml-4">No se encontraron películas con las palabras clave especificadas.</p>
+    <% } else { %>
+
+        <h2 class="text-2xl text-white font-semibold mb-4 ml-4">Películas Encontradas:</h2>
+
+        <div class="flex overflow-x-auto space-x-4 pb-6 px-4 scrollbar-hide">
+
+            <% movies.forEach((movie) => { %>
+                <a href="/pelicula/<%= movie.movie_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
+                    <div class="card bg-[#222] movie-card shadow-xl">
+                        <figure class="h-64">
+                            <img src="<%= movie.poster_url %>"
+                                 alt="<%= movie.title %>"
+                                 class="h-full w-full object-cover rounded-t-lg"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/180x270/222/ffffff?text=Póster+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3">
+                            <h2 class="card-title text-white text-base truncate" title="<%= movie.title %>"><%= movie.title %></h2>
+                            <div class="badge badge-warning text-xs font-bold">
+                                ⭐ <%= movie.vote_average ? Number(movie.vote_average).toFixed(1) : 'N/A' %>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
+
+    <div id="inicio" class="mt-10 ml-4 pb-4">
+        <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#5800BB]">Volver a Inicio</a>
+    </div>
+
+</div>
 
 </body>
 </html>

@@ -1,33 +1,80 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Películas dirigidas por <%= directorName %></title>
-    <link rel="stylesheet" href="/styles.css">
-</head>
-<body>
-<h1>Películas dirigidas por <%= directorName %></h1>
-<ul>
-    <% movies.sort((a, b) => new Date(b.release_date) - new Date(a.release_date)).forEach((movie) => { %>
-        <li><a href="/pelicula/<%= movie.movie_id %>"><%= movie.title %> (<%= new Date(movie.release_date).getFullYear() %>)</a></li>
-    <% }); %>
-</ul>
-<p></p>
-<div id="inicio"><a href="/">Inicio</a></div>
 
-<script>
-    const coll = document.getElementsByClassName('collapsible');
-    for (let i = 0; i < coll.length; i++) {
-        coll[i].addEventListener('click', function () {
-            this.classList.toggle('active');
-            const content = this.nextElementSibling;
-            if (content.style.display === 'block') {
-                content.style.display = 'none';
-            } else {
-                content.style.display = 'block';
-            }
-        });
-    }
-</script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.2.0/dist/full.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+
+    <style>
+        .movie-card {
+            width: 180px;
+        }
+    </style>
+</head>
+<body class="bg-[#111] text-white font-['Roboto']">
+
+<!-- Navbar -->
+<div class="navbar bg-[#222] shadow-lg sticky top-0 z-50 mb-6">
+    <div class="flex-1">
+        <a href="/" class="btn btn-ghost normal-case text-2xl text-[#7F00FF]">🎬 CineApp</a>
+    </div>
+    <div class="flex-none gap-2">
+        <% if (userId) { %>
+            <a href="/perfil" class="btn btn-ghost">👤 Mi Perfil</a>
+            <a href="/logout" class="btn btn-error btn-sm">🚪 Salir</a>
+        <% } else { %>
+            <a href="/login" class="btn btn-primary bg-[#7F00FF] border-0">Iniciar Sesión</a>
+        <% } %>
+    </div>
+</div>
+
+<div class="max-w-7xl mx-auto p-6">
+
+    <h1 class="text-4xl text-[#7F00FF] font-extrabold mb-8 border-l-4 border-red-400 pl-4">
+        🎥 Filmografía Dirigida por <%= directorName %>
+    </h1>
+
+    <% if (movies.length === 0) { %>
+        <p class="text-lg text-gray-400 ml-4">No se encontraron películas dirigidas por <%= directorName %>.</p>
+    <% } else { %>
+
+        <h2 class="text-2xl text-white font-semibold mb-4 ml-4">Total de Películas: <%= movies.length %></h2>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-4 pb-4 justify-items-center">
+
+            <% movies.forEach((movie) => { %>
+                <a href="/pelicula/<%= movie.movie_id %>" class="hover:scale-[1.05] transition duration-300 transform">
+                    <div class="card bg-[#222] movie-card shadow-xl flex-shrink-0">
+                        <figure class="h-64">
+                            <img src="<%= movie.poster_url %>"
+                                 alt="<%= movie.title %>"
+                                 class="h-full w-full object-cover rounded-t-lg"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/180x270/222/ffffff?text=Póster+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3">
+                            <h2 class="card-title text-white text-base truncate" title="<%= movie.title %>">
+                                <%= movie.title %> (<%= new Date(movie.release_date).getFullYear() %>)
+                            </h2>
+                            <div class="badge badge-warning text-xs font-bold">
+                                ⭐ <%= movie.vote_average ? Number(movie.vote_average).toFixed(1) : 'N/A' %>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            <% }); %>
+        </div>
+    <% } %>
+
+    <div id="inicio" class="mt-10 ml-4 pb-4">
+        <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#5800BB]">🏠 Volver a Inicio</a>
+    </div>
+
+</div>
 
 </body>
 </html>
