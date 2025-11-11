@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -35,7 +36,6 @@
         🎬 Resultados de la Búsqueda por Palabras Clave
     </h1>
 
-    <!-- CORRECCIÓN: Usar 'movies' en lugar de 'keys' -->
     <% if (movies.length === 0) { %>
         <p class="text-lg text-gray-400 ml-4">No se encontraron películas con las palabras clave especificadas.</p>
     <% } else { %>
@@ -44,7 +44,6 @@
 
         <div class="flex overflow-x-auto space-x-4 pb-6 px-4 scrollbar-hide">
 
-            <!-- CORRECCIÓN: Usar 'movies' en el bucle -->
             <% movies.forEach((movie) => { %>
                 <a href="/pelicula/<%= movie.movie_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
                     <div class="card bg-[#222] movie-card shadow-xl">
