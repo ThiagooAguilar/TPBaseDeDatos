@@ -310,131 +310,122 @@ app.get('/search_keyword', (req, res) => {
     });
 });
 
-app.get('/buscarpalabras', async (req, res) => {
-    const queryTerm = req.query.q;
-
-    if (!queryTerm) {
-        return res.redirect('/search_keyword');
-    }
-
-    const searchTerm = `%${queryTerm.toLowerCase()}%`;
-
-    const sqlQuery = `
-        SELECT DISTINCT ON (m.movie_id)
-            m.movie_id,
-            m.title,
-            m.poster_url,
-            m.vote_average 
-        FROM movies.movie m
-        JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
-        JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
-        WHERE LOWER(k.keyword_name) LIKE $1
-        ORDER BY m.movie_id, m.release_date DESC
-        LIMIT 100;
-    `;
-
-    try {
-        const result = await db.query(sqlQuery, [searchTerm]);
-
-        res.render('resultados_keyword', {
-            movies: result.rows,
-            query: queryTerm,
-            userId: req.session.userId
-        });
-
-    } catch (error) {
-        console.error('❌ Error al buscar películas por palabra clave:', error);
-        res.status(500).send('Error interno del servidor al consultar la base de datos.');
-    }
-});
-
-// DETALLE PELÍCULA (CORREGIDO)
+// DETALLE PELÍCULA - VERSIÓN COMPLETA CON TODA LA INFO
 app.get('/pelicula/:id', async (req, res) => {
-    const movieId = parseInt(req.params.id); // CONVERTIR A NÚMERO
+    const movieId = parseInt(req.params.id);
     const userId = req.session.userId;
 
-    // DEBUGGING
-    console.log('--- DETALLE PELÍCULA ---');
+    console.log('--- DETALLE PELÍCULA COMPLETO ---');
     console.log('Movie ID:', movieId);
     console.log('User ID:', userId);
 
     try {
-        // 1. Consulta Principal de Película, Elenco y Equipo
+        // 1. Información básica de la película
         const movieResult = await db.query(`
-            SELECT
-                m.*,
-                actor.person_name AS actor_name,
-                actor.person_id AS actor_id,
-                crew.person_name AS crew_member_name,
-                crew.person_id AS crew_member_id,
-                mc.character_name,
-                mc.cast_order,
-                d.department_name,
-                c.job
-            FROM movies.movie m
-            LEFT JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
-            LEFT JOIN movies.person actor ON mc.person_id = actor.person_id
-            LEFT JOIN movies.movie_crew c ON m.movie_id = c.movie_id
-            LEFT JOIN movies.department d ON c.department_id = d.department_id
-            LEFT JOIN movies.person crew ON crew.person_id = c.person_id
-            WHERE m.movie_id = $1;
+            SELECT *
+            FROM movies.movie
+            WHERE movie_id = $1;
         `, [movieId]);
 
         if (movieResult.rows.length === 0) {
             return res.status(404).send('Película no encontrada.');
         }
 
-        // 2. Procesar Datos de la Película
-        const movieData = {
-            movie_id: movieResult.rows[0].movie_id, // ⭐ AGREGADO
-            title: movieResult.rows[0].title,
-            release_date: movieResult.rows[0].release_date,
-            overview: movieResult.rows[0].overview,
-            poster_url: movieResult.rows[0].poster_url,
-            vote_average: movieResult.rows[0].vote_average,
-            directors: [],
-            writers: [],
-            cast: [],
-            crew: []
-        };
+        const movieData = movieResult.rows[0];
 
-        const processedCastIds = new Set();
-        const processedCrewIds = new Set();
+        // 2. Géneros
+        const genresResult = await db.query(`
+            SELECT g.genre_name
+            FROM movies.movie_genres mg
+            JOIN movies.genre g ON mg.genre_id = g.genre_id
+            WHERE mg.movie_id = $1;
+        `, [movieId]);
 
-        movieResult.rows.forEach(row => {
-            // Elenco (cast)
-            if (row.actor_id && !processedCastIds.has(row.actor_id)) {
-                movieData.cast.push({
-                    actor_id: row.actor_id,
-                    actor_name: row.actor_name,
-                    character_name: row.character_name,
-                    cast_order: row.cast_order
-                });
-                processedCastIds.add(row.actor_id);
-            }
+        // 3. Palabras clave (keywords)
+        const keywordsResult = await db.query(`
+            SELECT k.keyword_name
+            FROM movies.movie_keywords mk
+            JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
+            WHERE mk.movie_id = $1
+        `, [movieId]);
 
-            // Equipo (crew)
-            if (row.crew_member_id && !processedCrewIds.has(row.crew_member_id)) {
-                const crewMember = {
-                    crew_member_id: row.crew_member_id,
-                    crew_member_name: row.crew_member_name,
-                    department_name: row.department_name,
-                    job: row.job
-                };
+        // 4. Idiomas
+        const languagesResult = await db.query(`
+            SELECT l.language_name, lr.language_role
+            FROM movies.movie_languages ml
+            JOIN movies.language l ON ml.language_id = l.language_id
+            LEFT JOIN movies.language_role lr ON ml.language_role_id = lr.role_id
+            WHERE ml.movie_id = $1;
+        `, [movieId]);
 
-                if (row.job === 'Director' && row.department_name === 'Directing') {
-                    movieData.directors.push(crewMember);
-                } else if (row.job === 'Writer') {
-                    movieData.writers.push(crewMember);
-                } else {
-                    movieData.crew.push(crewMember);
-                }
+        // 5. Países de producción
+        const countriesResult = await db.query(`
+            SELECT c.country_name
+            FROM movies.production_country pc
+            JOIN movies.country c ON pc.country_id = c.country_id
+            WHERE pc.movie_id = $1;
+        `, [movieId]);
 
-                processedCrewIds.add(row.crew_member_id);
-            }
-        });
+        // 6. Compañías de producción
+        const companiesResult = await db.query(`
+            SELECT pc.company_name
+            FROM movies.movie_company mc
+            JOIN movies.production_company pc ON mc.company_id = pc.company_id
+            WHERE mc.movie_id = $1;
+        `, [movieId]);
 
-        // 3. Consulta de Interacción del Usuario (movie_user)
+        // 7. Elenco (Cast) con fotos
+        const castResult = await db.query(`
+            SELECT 
+                p.person_id,
+                p.person_name,
+                p.profile_url,
+                mc.character_name,
+                mc.cast_order
+            FROM movies.movie_cast mc
+            JOIN movies.person p ON mc.person_id = p.person_id
+            WHERE mc.movie_id = $1
+            ORDER BY mc.cast_order
+        `, [movieId]);
+
+        // 8. Equipo técnico (Crew) - Directores
+        const directorsResult = await db.query(`
+            SELECT 
+                p.person_id,
+                p.person_name,
+                p.profile_url
+            FROM movies.movie_crew mc
+            JOIN movies.person p ON mc.person_id = p.person_id
+            WHERE mc.movie_id = $1 AND mc.job = 'Director';
+        `, [movieId]);
+
+        // 9. Equipo técnico (Crew) - Escritores
+        const writersResult = await db.query(`
+            SELECT 
+                p.person_id,
+                p.person_name,
+                p.profile_url
+            FROM movies.movie_crew mc
+            JOIN movies.person p ON mc.person_id = p.person_id
+            WHERE mc.movie_id = $1 AND mc.job = 'Writer';
+        `, [movieId]);
+
+        // 10. Equipo técnico (Crew) - Resto del equipo
+        const crewResult = await db.query(`
+            SELECT 
+                p.person_id,
+                p.person_name,
+                d.department_name,
+                mc.job
+            FROM movies.movie_crew mc
+            JOIN movies.person p ON mc.person_id = p.person_id
+            JOIN movies.department d ON mc.department_id = d.department_id
+            WHERE mc.movie_id = $1 
+                AND mc.job NOT IN ('Director', 'Writer')
+            ORDER BY d.department_name, mc.job
+        `, [movieId]);
+
+        // 11. Interacción del usuario (movie_user)
         let movieUserData = { rating: null, opinion: null, favorite: false };
 
         if (userId) {
@@ -454,9 +445,41 @@ app.get('/pelicula/:id', async (req, res) => {
             }
         }
 
-        // 4. Renderizar la vista
+        // 12. Preparar objeto completo para renderizar
+        const completeMovieData = {
+            // Datos básicos
+            movie_id: movieData.movie_id,
+            title: movieData.title,
+            original_title: movieData.original_title,
+            tagline: movieData.tagline,
+            overview: movieData.overview,
+            release_date: movieData.release_date,
+            runtime: movieData.runtime,
+            budget: movieData.budget,
+            revenue: movieData.revenue,
+            vote_average: movieData.vote_average,
+            vote_count: movieData.vote_count,
+            popularity: movieData.popularity,
+            poster_url: movieData.poster_url,
+            backdrop_url: movieData.backdrop_url,
+            homepage_url: movieData.homepage_url,
+            status: movieData.status,
+
+            // Datos relacionados
+            genres: genresResult.rows,
+            keywords: keywordsResult.rows,
+            languages: languagesResult.rows,
+            countries: countriesResult.rows,
+            companies: companiesResult.rows,
+            cast: castResult.rows,
+            directors: directorsResult.rows,
+            writers: writersResult.rows,
+            crew: crewResult.rows
+        };
+
+        // 13. Renderizar la vista
         res.render('pelicula', {
-            movie: movieData,
+            movie: completeMovieData,
             current_user_id: userId,
             movie_user_data: movieUserData
         });
@@ -620,16 +643,28 @@ app.get('/usuario/:id', async (req, res) => {
 app.get('/actor/:id', async (req, res) => {
     try {
         const result = await db.query(`
-            SELECT DISTINCT p.person_name AS actorName, m.*
+            SELECT
+                p.person_name,
+                m.movie_id,
+                m.title,
+                m.poster_url,
+                m.vote_average,
+                m.release_date
             FROM movies.movie m
-            INNER JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
-            INNER JOIN movies.person p ON p.person_id = mc.person_id
-            WHERE mc.person_id = $1;
+                     INNER JOIN movies.movie_cast mc ON m.movie_id = mc.movie_id
+                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            WHERE mc.person_id = $1
+            ORDER BY m.release_date DESC;
         `, [req.params.id]);
 
-        const actorName = result.rows[0]?.actorname || '';
+        if (result.rows.length === 0) {
+            return res.status(404).send('Actor no encontrado o sin películas.');
+        }
+
+        const actorName = result.rows[0].person_name;
+
         res.render('actor', {
-            actorName,
+            actorName: actorName,
             movies: result.rows,
             userId: req.session.userId
         });
@@ -640,20 +675,32 @@ app.get('/actor/:id', async (req, res) => {
     }
 });
 
-// DIRECTOR
+// DIRECTOR - RUTA CORREGIDA
 app.get('/director/:id', async (req, res) => {
     try {
         const result = await db.query(`
-            SELECT DISTINCT p.person_name AS directorName, m.*
+            SELECT
+                p.person_name,
+                m.movie_id,
+                m.title,
+                m.poster_url,
+                m.vote_average,
+                m.release_date
             FROM movies.movie m
-            INNER JOIN movies.movie_crew mc ON m.movie_id = mc.movie_id
-            INNER JOIN movies.person p ON p.person_id = mc.person_id
-            WHERE mc.job = 'Director' AND mc.person_id = $1;
+                     INNER JOIN movies.movie_crew mc ON m.movie_id = mc.movie_id
+                     INNER JOIN movies.person p ON p.person_id = mc.person_id
+            WHERE mc.job = 'Director' AND mc.person_id = $1
+            ORDER BY m.release_date DESC;
         `, [req.params.id]);
 
-        const directorName = result.rows[0]?.directorname || '';
+        if (result.rows.length === 0) {
+            return res.status(404).send('Director no encontrado o sin películas.');
+        }
+
+        const directorName = result.rows[0].person_name;
+
         res.render('director', {
-            directorName,
+            directorName: directorName,
             movies: result.rows,
             userId: req.session.userId
         });

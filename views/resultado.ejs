@@ -16,88 +16,106 @@
 </head>
 <body class="bg-[#111] text-white font-['Roboto']">
 
-<h1 class="text-4xl text-[#7F00FF] text-center my-6">Resultado de la Búsqueda</h1>
+<!-- Navbar -->
+<div class="navbar bg-[#222] shadow-lg sticky top-0 z-50 mb-6">
+    <div class="flex-1">
+        <a href="/" class="btn btn-ghost normal-case text-2xl text-[#7F00FF]">🎬 CineApp</a>
+    </div>
+    <div class="flex-none gap-2">
+        <% if (userId) { %>
+            <a href="/perfil" class="btn btn-ghost">👤 Mi Perfil</a>
+            <a href="/logout" class="btn btn-error btn-sm">🚪 Salir</a>
+        <% } else { %>
+            <a href="/login" class="btn btn-primary bg-[#7F00FF] border-0">Iniciar Sesión</a>
+        <% } %>
+    </div>
+</div>
 
-<h2 class="text-2xl text-white my-4 ml-4">Películas</h2>
+<div class="p-6">
+    <h1 class="text-4xl text-[#7F00FF] text-center my-6">Resultado de la Búsqueda</h1>
 
-<% if (movies.length === 0) { %>
-    <p class="ml-4">No se encontraron películas.</p>
-<% } else { %>
-    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-4 pb-4 justify-items-center">
-        <% movies.forEach((movie) => { %>
-            <a href="/pelicula/<%= movie.movie_id || movie.id %>" class="hover:scale-[1.05] transition duration-300 transform">
-                <div class="card bg-[#222] movie-card shadow-md flex-shrink-0">
-                    <figure class="h-64">
-                        <img src="<%= movie.poster_url %>"
-                             alt="<%= movie.title %>"
-                             class="h-full w-full object-cover rounded-t-lg"
-                             onerror="this.onerror=null;this.src='https://placehold.co/180x270/222/ffffff?text=Póster+No+Disp.'" />
-                    </figure>
-                    <div class="card-body p-3">
-                        <h2 class="card-title text-white text-base truncate" title="<%= movie.title %>"><%= movie.title %></h2>
-                        <div class="badge badge-warning text-xs font-bold">
-                            ⭐ <%= movie.rating ? Number(movie.rating).toFixed(1) : 'N/A' %>
+    <h2 class="text-2xl text-white my-4 ml-4">Películas</h2>
+
+    <% if (movies.length === 0) { %>
+        <p class="ml-4">No se encontraron películas.</p>
+    <% } else { %>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-4 pb-4 justify-items-center">
+            <% movies.forEach((movie) => { %>
+                <a href="/pelicula/<%= movie.movie_id || movie.id %>" class="hover:scale-[1.05] transition duration-300 transform">
+                    <div class="card bg-[#222] movie-card shadow-md flex-shrink-0">
+                        <figure class="h-64">
+                            <img src="<%= movie.poster_url %>"
+                                 alt="<%= movie.title %>"
+                                 class="h-full w-full object-cover rounded-t-lg"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/180x270/222/ffffff?text=Póster+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3">
+                            <h2 class="card-title text-white text-base truncate" title="<%= movie.title %>"><%= movie.title %></h2>
+                            <div class="badge badge-warning text-xs font-bold">
+                                ⭐ <%= movie.vote_average ? Number(movie.vote_average).toFixed(1) : 'N/A' %>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </a>
-        <% }) %>
-    </div>
-<% } %>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
 
-<h2 class="text-2xl text-white my-4 ml-4">Actores</h2>
-<% if (actors.length === 0) { %>
-    <p class="ml-4">No se encontraron actores.</p>
-<% } else { %>
-    <div class="flex flex-row overflow-x-auto gap-4 px-4 pb-4">
-        <% actors.forEach((actor) => { %>
-            <a href="/persona/<%= actor.person_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
-                <div class="card bg-[#222] movie-card shadow-md">
-                    <figure class="h-48"> <img src="<%= actor.profile_url %>"
-                                               alt="<%= actor.person_name %>"
-                                               class="h-full w-full object-cover rounded-t-lg"
-                                               onerror="this.onerror=null;this.src='https://placehold.co/180x240/222/ffffff?text=Perfil+No+Disp.'" />
-                    </figure>
-                    <div class="card-body p-3 flex flex-col justify-between">
-                        <h2 class="card-title text-white text-base truncate" title="<%= actor.person_name %>"><%= actor.person_name %></h2>
-                        <div class="badge badge-info text-xs font-bold mt-1">
-                            Actor
+    <h2 class="text-2xl text-white my-4 ml-4">Actores</h2>
+    <% if (actors.length === 0) { %>
+        <p class="ml-4">No se encontraron actores.</p>
+    <% } else { %>
+        <div class="flex flex-row overflow-x-auto gap-4 px-4 pb-4">
+            <% actors.forEach((actor) => { %>
+                <a href="/actor/<%= actor.person_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
+                    <div class="card bg-[#222] movie-card shadow-md">
+                        <figure class="h-48">
+                            <img src="<%= actor.profile_url %>"
+                                 alt="<%= actor.person_name %>"
+                                 class="h-full w-full object-cover rounded-t-lg"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/180x240/222/ffffff?text=Perfil+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3 flex flex-col justify-between">
+                            <h2 class="card-title text-white text-base truncate" title="<%= actor.person_name %>"><%= actor.person_name %></h2>
+                            <div class="badge badge-info text-xs font-bold mt-1">
+                                Actor
+                            </div>
                         </div>
                     </div>
-                </div>
-            </a>
-        <% }) %>
-    </div>
-<% } %>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
 
-<h2 class="text-2xl text-white my-4 ml-4">Directores</h2>
-<% if (directors.length === 0) { %>
-    <p class="ml-4">No se encontraron directores.</p>
-<% } else { %>
-    <div class="flex flex-row overflow-x-auto gap-4 px-4 pb-4">
-        <% directors.forEach((director) => { %>
-            <a href="/persona/<%= director.person_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
-                <div class="card bg-[#222] movie-card shadow-md">
-                    <figure class="h-48">
-                        <img src="<%= director.profile_url %>"
-                             alt="<%= director.person_name %>"
-                             class="h-full w-full object-cover rounded-t-lg"
-                             onerror="this.onerror=null;this.src='https://placehold.co/180x240/222/ffffff?text=Perfil+No+Disp.'" />
-                    </figure>
-                    <div class="card-body p-3 flex flex-col justify-between">
-                        <h2 class="card-title text-white text-base truncate" title="<%= director.person_name %>"><%= director.person_name %></h2>
-                        <div class="badge badge-error text-xs font-bold mt-1">
-                            Director
+    <h2 class="text-2xl text-white my-4 ml-4">Directores</h2>
+    <% if (directors.length === 0) { %>
+        <p class="ml-4">No se encontraron directores.</p>
+    <% } else { %>
+        <div class="flex flex-row overflow-x-auto gap-4 px-4 pb-4">
+            <% directors.forEach((director) => { %>
+                <a href="/director/<%= director.person_id %>" class="hover:scale-[1.05] transition duration-300 transform flex-shrink-0">
+                    <div class="card bg-[#222] movie-card shadow-md">
+                        <figure class="h-48">
+                            <img src="<%= director.profile_url %>"
+                                 alt="<%= director.person_name %>"
+                                 class="h-full w-full object-cover rounded-t-lg"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/180x240/222/ffffff?text=Perfil+No+Disp.'" />
+                        </figure>
+                        <div class="card-body p-3 flex flex-col justify-between">
+                            <h2 class="card-title text-white text-base truncate" title="<%= director.person_name %>"><%= director.person_name %></h2>
+                            <div class="badge badge-error text-xs font-bold mt-1">
+                                Director
+                            </div>
                         </div>
                     </div>
-                </div>
-            </a>
-        <% }) %>
-    </div>
-<% } %>
+                </a>
+            <% }) %>
+        </div>
+    <% } %>
 
-<div id="inicio" class="mt-6 ml-4 pb-10">
-    <a href="/" class="btn btn-primary">Inicio</a>
+    <div id="inicio" class="mt-6 ml-4 pb-10">
+        <a href="/" class="btn btn-primary bg-[#7F00FF] border-0 hover:bg-[#9933FF]">🏠 Inicio</a>
+    </div>
 </div>
 
 </body>
