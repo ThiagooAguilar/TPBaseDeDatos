@@ -1,71 +1,64 @@
-// movieUser.service.js
 class MovieUserService {
-
-    /**
-     * Guarda o actualiza la puntuación y opinión de un usuario para una película (UPSERT).
-     */
     static async upsertRatingOpinion(db, userId, movieId, rating, opinion) {
+        const query = `
+            INSERT INTO movies.movie_user (user_id, movie_id, rating, opinion, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, movie_id)
+            DO UPDATE SET
+                rating = COALESCE(EXCLUDED.rating, movies.movie_user.rating),
+                opinion = COALESCE(EXCLUDED.opinion, movies.movie_user.opinion),
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *;
+        `;
+
         try {
-            // ⚠️ CORRECCIÓN: Usar db.query(...) NO db.query`...`
-            const result = await db.query(
-                `INSERT INTO movies.movie_user (user_id, movie_id, rating, opinion)
-                 VALUES ($1, $2, $3, $4)
-                     ON CONFLICT (user_id, movie_id) 
-                 DO UPDATE SET
-                    rating = EXCLUDED.rating,
-                                             opinion = EXCLUDED.opinion,
-                                             updated_at = NOW()
-                                             RETURNING *;`,
-                [userId, movieId, rating, opinion]
-            );
-
-            console.log('✅ Interacción guardada:', result.rows[0]);
+            const result = await db.query(query, [userId, movieId, rating, opinion]);
             return result.rows[0];
-
         } catch (error) {
-            console.error("❌ Error en upsertRatingOpinion:", error);
-
-            // Errores específicos de PostgreSQL
-            if (error.code === '23503') {
-                throw new Error("La película o usuario no existe.");
-            }
-            if (error.code === '23505') {
-                throw new Error("Ya existe una interacción para esta película.");
-            }
-
-            throw new Error("No se pudo guardar la interacción.");
+            console.error('❌ Error en upsertRatingOpinion:', error);
+            throw error;
         }
     }
 
-    /**
-     * Actualiza el estado de favorito (True/False) (UPSERT).
-     */
-    static async toggleFavorite(db, userId, movieId, favoriteStatus) {
+    static async toggleFavorite(db, userId, movieId, favorite) {
+        const query = `
+            INSERT INTO movies.movie_user (user_id, movie_id, favorite, created_at, updated_at)
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (user_id, movie_id)
+            DO UPDATE SET
+                favorite = EXCLUDED.favorite,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *;
+        `;
+
         try {
-            // ⚠️ CORRECCIÓN: Usar db.query(...) NO db.query`...`
-            const result = await db.query(
-                `INSERT INTO movies.movie_user (user_id, movie_id, favorite)
-                 VALUES ($1, $2, $3)
-                     ON CONFLICT (user_id, movie_id) 
-                 DO UPDATE SET
-                    favorite = EXCLUDED.favorite,
-                                             updated_at = NOW()
-                                             RETURNING *;`,
-                [userId, movieId, favoriteStatus]
-            );
-
-            console.log('✅ Favorito actualizado:', result.rows[0]);
+            const result = await db.query(query, [userId, movieId, favorite]);
             return result.rows[0];
-
         } catch (error) {
-            console.error("❌ Error en toggleFavorite:", error);
+            console.error('❌ Error en toggleFavorite:', error);
+            throw error;
+        }
+    }
 
-            // Errores específicos de PostgreSQL
-            if (error.code === '23503') {
-                throw new Error("La película o usuario no existe.");
-            }
+    static async getUserMovieData(db, userId, movieId) {
+        const query = `
+            SELECT rating, opinion, favorite, created_at, updated_at
+            FROM movies.movie_user
+            WHERE user_id = $1 AND movie_id = $2;
+        `;
 
-            throw new Error("No se pudo actualizar el estado de favorito.");
+        try {
+            const result = await db.query(query, [userId, movieId]);
+            return result.rows[0] || {
+                rating: null,
+                opinion: null,
+                favorite: false,
+                created_at: null,
+                updated_at: null
+            };
+        } catch (error) {
+            console.error('❌ Error en getUserMovieData:', error);
+            throw error;
         }
     }
 }

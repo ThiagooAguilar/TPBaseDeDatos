@@ -466,6 +466,155 @@ app.get('/pelicula/:id', async (req, res) => {
         res.status(500).send('Error interno del servidor.');
     }
 });
+/* =========================
+    RUTAS DE PERFIL DE USUARIO
+========================= */
+
+// Ruta: Ver MI perfil (usuario logueado)
+app.get('/perfil', isAuthenticated, async (req, res) => {
+    const userId = req.session.userId;
+
+    try {
+        // 1. Obtener información del usuario
+        const userResult = await db.query(`
+            SELECT user_id, user_username, user_name, user_email
+            FROM public."user"
+            WHERE user_id = $1;
+        `, [userId]);
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).send('Usuario no encontrado.');
+        }
+
+        const user = userResult.rows[0];
+
+        // 2. Obtener películas con calificación (ratings)
+        const ratingsResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.rating IS NOT NULL
+            ORDER BY mu.rating DESC;
+        `, [userId]);
+
+        // 3. Obtener películas con reseñas
+        const reviewsResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                mu.opinion,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.opinion IS NOT NULL AND mu.opinion != ''
+            ORDER BY mu.movie_id DESC;
+        `, [userId]);
+
+        // 4. Obtener películas favoritas
+        const favoritesResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.favorite = true
+            ORDER BY mu.movie_id DESC;
+        `, [userId]);
+
+        // 5. Renderizar la vista
+        res.render('perfil', {
+            user: user,
+            ratings: ratingsResult.rows,
+            reviews: reviewsResult.rows,
+            favorites: favoritesResult.rows,
+            userId: userId
+        });
+
+    } catch (err) {
+        console.error('❌ Error en /perfil:', err);
+        res.status(500).send('Error al cargar el perfil.');
+    }
+});
+
+// Ruta: Ver perfil de OTRO usuario (opcional)
+app.get('/usuario/:id', async (req, res) => {
+    const profileUserId = parseInt(req.params.id);
+
+    try {
+        // 1. Obtener información del usuario
+        const userResult = await db.query(`
+            SELECT user_id, user_username, user_name, user_email
+            FROM public."user"
+            WHERE user_id = $1;
+        `, [profileUserId]);
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).send('Usuario no encontrado.');
+        }
+
+        const user = userResult.rows[0];
+
+        // 2. Obtener películas con calificación (ratings)
+        const ratingsResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.rating IS NOT NULL
+            ORDER BY mu.rating DESC;
+        `, [profileUserId]);
+
+        // 3. Obtener películas con reseñas (solo públicas, opcional)
+        const reviewsResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                mu.opinion,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.opinion IS NOT NULL AND mu.opinion != ''
+            ORDER BY mu.movie_id DESC;
+        `, [profileUserId]);
+
+        // 4. Obtener películas favoritas
+        const favoritesResult = await db.query(`
+            SELECT 
+                mu.movie_id,
+                mu.rating,
+                m.title,
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1 AND mu.favorite = true
+            ORDER BY mu.movie_id DESC;
+        `, [profileUserId]);
+
+        // 5. Renderizar la vista
+        res.render('perfil', {
+            user: user,
+            ratings: ratingsResult.rows,
+            reviews: reviewsResult.rows,
+            favorites: favoritesResult.rows,
+            userId: req.session.userId // Usuario logueado
+        });
+
+    } catch (err) {
+        console.error('❌ Error en /usuario/:id:', err);
+        res.status(500).send('Error al cargar el perfil.');
+    }
+});
 
 // ACTOR
 app.get('/actor/:id', async (req, res) => {
@@ -586,6 +735,106 @@ app.put('/usuarios/:id', async (req, res) => {
     } catch (err) {
         console.error('❌ Error en PUT /usuarios/:id:', err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+
+// ==========================================================
+// 🔎 RUTAS PARA BÚSQUEDA DE PERFILES
+// ==========================================================
+
+// GET: Muestra la página de búsqueda de perfiles
+app.get('/search_profile', (req, res) => {
+    // La variable `query` se usa para precargar el input si el usuario regresa
+    const searchTerm = req.query.q || '';
+    res.render('search_profile', {
+        query: searchTerm,
+        userId: req.session.userId, // Necesario para el header/sidebar
+        // Asumiendo que tu EJS de búsqueda se llama 'search_profile.ejs'
+    });
+});
+
+// GET: Ejecuta la búsqueda de perfiles
+app.get('/buscarperfiles', async (req, res) => {
+    const queryTerm = req.query.q;
+
+    if (!queryTerm) {
+        // Si no hay término de búsqueda, redirige a la página de búsqueda
+        return res.redirect('/search_profile');
+    }
+
+    // Usamos ILIKE para hacer la búsqueda insensible a mayúsculas y minúsculas
+    const searchTerm = `%${queryTerm.toLowerCase()}%`;
+
+    try {
+        const users = await db.query(`
+            SELECT user_id, user_username, user_name, user_email
+            FROM public."user"
+            WHERE LOWER(user_username) LIKE $1 OR LOWER(user_email) LIKE $1
+            ORDER BY user_username;
+        `, [searchTerm]);
+
+        // Renderiza una nueva vista de resultados de búsqueda (Necesitas crear `resultados_perfiles.ejs`)
+        res.render('resultados_perfiles', {
+            users: users.rows,
+            query: queryTerm,
+            userId: req.session.userId
+        });
+
+    } catch (error) {
+        console.error('Error al buscar perfiles:', error);
+        res.status(500).send('Error interno del servidor al buscar perfiles.');
+    }
+});
+app.get('/perfil/:id', async (req, res) => {
+    const profileId = req.params.id;
+
+    try {
+        // 1. Obtener datos del usuario
+        const userResult = await db.query(`
+            SELECT user_id, user_username, user_name, user_email
+            FROM public."user"
+            WHERE user_id = $1;
+        `, [profileId]);
+
+        if (userResult.rows.length === 0) return res.status(404).send('Usuario no encontrado.');
+        const user = userResult.rows[0];
+
+        // 2. Obtener interacciones (Ratings, Opiniones, Favoritos)
+        // Se asume que la tabla movies.movie_user tiene los IDs de movie, rating, opinion y favorite.
+        const interactionsResult = await db.query(`
+            SELECT 
+                mu.rating, 
+                mu.opinion, 
+                mu.favorite, 
+                m.movie_id, 
+                m.title, 
+                m.poster_url
+            FROM movies.movie_user mu
+            JOIN movies.movie m ON mu.movie_id = m.movie_id
+            WHERE mu.user_id = $1;
+        `, [profileId]);
+
+        // 3. Clasificar interacciones
+        const allInteractions = interactionsResult.rows;
+
+        const ratings = allInteractions.filter(item => item.rating !== null);
+        const reviews = allInteractions.filter(item => item.opinion && item.opinion.trim() !== '');
+        const favorites = allInteractions.filter(item => item.favorite === true);
+
+        // 4. Renderizar la vista
+        res.render('perfil', {
+            user: user,
+            ratings: ratings,
+            reviews: reviews,
+            favorites: favorites,
+            userId: req.session.userId, // ID del usuario logueado actualmente (para el header)
+            isOwner: req.session.userId == profileId // Booleano para saber si es el perfil propio
+        });
+
+    } catch (err) {
+        console.error('Error al cargar el perfil:', err);
+        res.status(500).send('Error interno del servidor.');
     }
 });
 
