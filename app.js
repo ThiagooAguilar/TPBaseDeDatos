@@ -651,6 +651,51 @@ app.delete('/perfil/eliminar', isAuthenticated, async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar la cuenta' });
     }
 });
+// PUT: Editar información del usuario (nombre y email)
+app.put('/perfil/editar', isAuthenticated, async (req, res) => {
+    const userId = req.session.userId;
+    const { user_name, user_email } = req.body;
+
+    // Validación básica
+    if (!user_name || !user_email) {
+        return res.status(400).json({
+            error: 'Nombre y email son obligatorios'
+        });
+    }
+
+    try {
+        // Actualizar los datos del usuario
+        const result = await db.query(`
+            UPDATE public."user"
+            SET user_name = $1, user_email = $2
+            WHERE user_id = $3
+            RETURNING user_id, user_username, user_name, user_email;
+        `, [user_name, user_email, userId]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        console.log('✅ Usuario actualizado:', result.rows[0].user_username);
+
+        res.json({
+            mensaje: 'Información actualizada exitosamente',
+            usuario: result.rows[0]
+        });
+
+    } catch (err) {
+        console.error('❌ Error al actualizar perfil:', err);
+
+        // Manejar error de email duplicado
+        if (err.code === '23505') {
+            return res.status(400).json({
+                error: 'El email ya está en uso por otro usuario'
+            });
+        }
+
+        res.status(500).json({ error: 'Error al actualizar la información' });
+    }
+});
 
 // Ruta: Ver perfil de OTRO usuario (opcional)
 app.get('/usuario/:id', async (req, res) => {

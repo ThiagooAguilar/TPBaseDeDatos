@@ -54,9 +54,12 @@
             </div>
         </div>
 
-        <!-- NUEVO: Botón para eliminar cuenta (solo si es el perfil propio) -->
+        <!-- NUEVO: Botones de acción (solo si es el perfil propio) -->
         <% if (locals.isOwner || userId === user.user_id) { %>
-            <div class="mt-6 pt-6 border-t border-gray-700">
+            <div class="mt-6 pt-6 border-t border-gray-700 flex gap-4">
+                <button onclick="openEditModal()" class="btn btn-primary">
+                    ✏️ Editar mi información
+                </button>
                 <button onclick="confirmDeleteAccount()" class="btn btn-error btn-outline">
                     🗑️ Eliminar mi cuenta
                 </button>
@@ -179,7 +182,84 @@
 
 </div>
 
+<!-- Modal para EDITAR datos del usuario -->
+<dialog id="editModal" class="modal">
+    <div class="modal-box bg-[#222] text-white max-w-md">
+        <h3 class="font-bold text-2xl text-[#7F00FF] mb-4">✏️ Editar mi información</h3>
+
+        <form id="editForm" class="space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text text-white">Nombre</span>
+                </label>
+                <input type="text" id="edit_name" name="user_name"
+                       value="<%= user.user_name %>"
+                       class="input input-bordered bg-[#333] text-white"
+                       required />
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text text-white">Email</span>
+                </label>
+                <input type="email" id="edit_email" name="user_email"
+                       value="<%= user.user_email %>"
+                       class="input input-bordered bg-[#333] text-white"
+                       required />
+            </div>
+
+            <div class="alert alert-info">
+                <span class="text-sm">ℹ️ El nombre de usuario no se puede modificar</span>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" onclick="closeEditModal()" class="btn btn-ghost">
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    💾 Guardar cambios
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Modal para ELIMINAR cuenta -->
+<dialog id="deleteAccountModal" class="modal">
+    <div class="modal-box bg-[#222] text-white">
+        <h3 class="font-bold text-2xl text-red-500 mb-4">⚠️ ¿Estás seguro?</h3>
+        <p class="py-4 text-lg">
+            Esta acción es <strong class="text-red-500">irreversible</strong>.
+            Se eliminarán permanentemente:
+        </p>
+        <ul class="list-disc list-inside mb-6 text-gray-300 space-y-2">
+            <li>Tu perfil y datos personales</li>
+            <li>Todas tus calificaciones (<%= ratings.length %>)</li>
+            <li>Todas tus reseñas (<%= reviews.length %>)</li>
+            <li>Todas tus películas favoritas (<%= favorites.length %>)</li>
+        </ul>
+        <p class="text-yellow-400 mb-6">
+            💡 Si solo quieres cambiar tu información, usa la opción "Editar mi información" en lugar de eliminar tu cuenta.
+        </p>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-ghost">Cancelar</button>
+            </form>
+            <button onclick="deleteAccount()" class="btn btn-error">
+                Sí, eliminar mi cuenta
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
 <script>
+    // ========== TABS ==========
     function showTab(tabName) {
         // Ocultar todos los tabs
         document.querySelectorAll('.tab-content').forEach(tab => {
@@ -197,38 +277,50 @@
         // Activar el botón correspondiente
         event.target.classList.add('tab-active');
     }
-</script>
-<dialog id="deleteAccountModal" class="modal">
-    <div class="modal-box bg-[#222] text-white">
-        <h3 class="font-bold text-2xl text-red-500 mb-4">⚠️ ¿Estás seguro?</h3>
-        <p class="py-4 text-lg">
-            Esta acción es <strong class="text-red-500">irreversible</strong>.
-            Se eliminarán permanentemente:
-        </p>
-        <ul class="list-disc list-inside mb-6 text-gray-300 space-y-2">
-            <li>Tu perfil y datos personales</li>
-            <li>Todas tus calificaciones (<%= ratings.length %>)</li>
-            <li>Todas tus reseñas (<%= reviews.length %>)</li>
-            <li>Todas tus películas favoritas (<%= favorites.length %>)</li>
-        </ul>
-        <p class="text-yellow-400 mb-6">
-            💡 Si solo quieres cambiar tu información, considera editarla en lugar de eliminar tu cuenta.
-        </p>
-        <div class="modal-action">
-            <form method="dialog">
-                <button class="btn btn-ghost">Cancelar</button>
-            </form>
-            <button onclick="deleteAccount()" class="btn btn-error">
-                Sí, eliminar mi cuenta
-            </button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
 
-<script>
+    // ========== EDITAR PERFIL ==========
+    function openEditModal() {
+        document.getElementById('editModal').showModal();
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').close();
+    }
+
+    // Manejar el envío del formulario de edición
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            user_name: document.getElementById('edit_name').value,
+            user_email: document.getElementById('edit_email').value
+        };
+
+        try {
+            const response = await fetch('/perfil/editar', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('✅ ' + data.mensaje);
+                // Recargar la página para mostrar los datos actualizados
+                window.location.reload();
+            } else {
+                alert('❌ Error: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error al editar perfil:', error);
+            alert('❌ Error al actualizar los datos. Por favor, intenta de nuevo.');
+        }
+    });
+
+    // ========== ELIMINAR CUENTA ==========
     function confirmDeleteAccount() {
         document.getElementById('deleteAccountModal').showModal();
     }
@@ -255,24 +347,6 @@
             console.error('Error al eliminar cuenta:', error);
             alert('❌ Error al eliminar la cuenta. Por favor, intenta de nuevo.');
         }
-    }
-
-    function showTab(tabName) {
-        // Ocultar todos los tabs
-        document.querySelectorAll('.tab-content').forEach(tab => {
-            tab.classList.add('hidden');
-        });
-
-        // Remover clase active de todos los botones
-        document.querySelectorAll('.tab').forEach(btn => {
-            btn.classList.remove('tab-active');
-        });
-
-        // Mostrar el tab seleccionado
-        document.getElementById('tab-' + tabName).classList.remove('hidden');
-
-        // Activar el botón correspondiente
-        event.target.classList.add('tab-active');
     }
 </script>
 </body>
