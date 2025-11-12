@@ -1,9 +1,8 @@
-CREATE TABLE IF NOT EXISTS movies.movie_user (
-                                                 id SERIAL PRIMARY KEY,
-                                                 user_id INTEGER REFERENCES public."user"(user_id) ON DELETE CASCADE,
-                                                 movie_id INTEGER REFERENCES movies.movie(movie_id) ON DELETE CASCADE,
-                                                 rating INTEGER,
-                                                 opinion TEXT,
-                                                 favorite BOOLEAN DEFAULT FALSE,
-                                                 UNIQUE (user_id, movie_id)
+CREATE TABLE movies.movie_user (
+    movie_id INT REFERENCES movies.movie(movie_id),
+    user_id INT REFERENCES movies.user(user_id),
+    rating NUMERIC(2,1),
+    opinion TEXT,
+    favorite BOOLEAN DEFAULT false,
+    PRIMARY KEY (movie_id, user_id)
 );

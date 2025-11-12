@@ -1,6 +1,8 @@
 DROP SCHEMA IF EXISTS movies CASCADE;
 CREATE SCHEMA movies;
 
+SET search_path TO movies;
+
 DROP TABLE IF EXISTS movies.country;
 
 CREATE TABLE movies.country (
