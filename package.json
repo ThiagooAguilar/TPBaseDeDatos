@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "tailwind:init": "node ./node_modules/tailwindcss/lib/cli.js init -p",
     "tailwind:build": "node ./node_modules/tailwindcss/lib/cli.js -i ./src/styles.css -o ./public/styles.css --watch"
@@ -26,6 +27,7 @@
     "autoprefixer": "^10.4.14",
     "daisyui": "^3.6.0",
     "postcss": "^8.4.36",
-    "tailwindcss": "^3.3.3"
+    "tailwindcss": "^3.3.3",
+    "nodemon": "^3.1.11"
   }
 }

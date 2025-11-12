@@ -302,7 +302,11 @@ app.get('/buscar', async (req, res) => {
     }
 });
 app.get('/search_keyword', (req, res) => {
-    res.render('search_keyword');
+    const searchTerm = req.query.q || '';
+    res.render('search_keyword', {
+        query: searchTerm,
+        userId: req.session.userId
+    });
 });
 
 
