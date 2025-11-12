@@ -5,5 +5,7 @@ CREATE TABLE IF NOT EXISTS movies.movie_user (
                                                  rating INTEGER,
                                                  opinion TEXT,
                                                  favorite BOOLEAN DEFAULT FALSE,
-                                                 UNIQUE (user_id, movie_id)
+                                                 UNIQUE (user_id, movie_id),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
