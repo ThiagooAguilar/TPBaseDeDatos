@@ -53,6 +53,15 @@
                 <div class="stat-value text-[#7F00FF]"><%= favorites.length %></div>
             </div>
         </div>
+
+        <!-- NUEVO: Botón para eliminar cuenta (solo si es el perfil propio) -->
+        <% if (locals.isOwner || userId === user.user_id) { %>
+            <div class="mt-6 pt-6 border-t border-gray-700">
+                <button onclick="confirmDeleteAccount()" class="btn btn-error btn-outline">
+                    🗑️ Eliminar mi cuenta
+                </button>
+            </div>
+        <% } %>
     </div>
 
     <!-- Tabs para organizar el contenido -->
@@ -189,6 +198,82 @@
         event.target.classList.add('tab-active');
     }
 </script>
+<dialog id="deleteAccountModal" class="modal">
+    <div class="modal-box bg-[#222] text-white">
+        <h3 class="font-bold text-2xl text-red-500 mb-4">⚠️ ¿Estás seguro?</h3>
+        <p class="py-4 text-lg">
+            Esta acción es <strong class="text-red-500">irreversible</strong>.
+            Se eliminarán permanentemente:
+        </p>
+        <ul class="list-disc list-inside mb-6 text-gray-300 space-y-2">
+            <li>Tu perfil y datos personales</li>
+            <li>Todas tus calificaciones (<%= ratings.length %>)</li>
+            <li>Todas tus reseñas (<%= reviews.length %>)</li>
+            <li>Todas tus películas favoritas (<%= favorites.length %>)</li>
+        </ul>
+        <p class="text-yellow-400 mb-6">
+            💡 Si solo quieres cambiar tu información, considera editarla en lugar de eliminar tu cuenta.
+        </p>
+        <div class="modal-action">
+            <form method="dialog">
+                <button class="btn btn-ghost">Cancelar</button>
+            </form>
+            <button onclick="deleteAccount()" class="btn btn-error">
+                Sí, eliminar mi cuenta
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 
+<script>
+    function confirmDeleteAccount() {
+        document.getElementById('deleteAccountModal').showModal();
+    }
+
+    async function deleteAccount() {
+        try {
+            const response = await fetch('/perfil/eliminar', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('✅ ' + data.mensaje);
+                // Redirigir al login después de eliminar la cuenta
+                window.location.href = '/login';
+            } else {
+                alert('❌ Error: ' + data.error);
+            }
+        } catch (error) {
+            console.error('Error al eliminar cuenta:', error);
+            alert('❌ Error al eliminar la cuenta. Por favor, intenta de nuevo.');
+        }
+    }
+
+    function showTab(tabName) {
+        // Ocultar todos los tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+
+        // Remover clase active de todos los botones
+        document.querySelectorAll('.tab').forEach(btn => {
+            btn.classList.remove('tab-active');
+        });
+
+        // Mostrar el tab seleccionado
+        document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+        // Activar el botón correspondiente
+        event.target.classList.add('tab-active');
+    }
+</script>
 </body>
 </html>

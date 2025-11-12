@@ -599,12 +599,56 @@ app.get('/perfil', isAuthenticated, async (req, res) => {
             ratings: ratingsResult.rows,
             reviews: reviewsResult.rows,
             favorites: favoritesResult.rows,
-            userId: userId
+            userId: userId,
+            isOwner: true
         });
 
     } catch (err) {
         console.error('❌ Error en /perfil:', err);
         res.status(500).send('Error al cargar el perfil.');
+    }
+});
+app.delete('/perfil/eliminar', isAuthenticated, async (req, res) => {
+    const userId = req.session.userId;
+
+    try {
+        // 1. Eliminar todas las interacciones del usuario (movie_user)
+        await db.query(`
+            DELETE FROM movies.movie_user
+            WHERE user_id = $1;
+        `, [userId]);
+
+        // 2. Eliminar el usuario
+        const result = await db.query(`
+            DELETE FROM public."user"
+            WHERE user_id = $1
+            RETURNING user_id, user_username, user_name;
+        `, [userId]);
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        const deletedUser = result.rows[0];
+
+        // 3. Destruir la sesión
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('❌ Error al destruir sesión:', err);
+            }
+        });
+
+        console.log('✅ Usuario eliminado:', deletedUser.user_username);
+
+        // 4. Responder con éxito
+        res.json({
+            mensaje: 'Tu cuenta ha sido eliminada exitosamente.',
+            usuario: deletedUser
+        });
+
+    } catch (err) {
+        console.error('❌ Error al eliminar cuenta propia:', err);
+        res.status(500).json({ error: 'Error al eliminar la cuenta' });
     }
 });
 
