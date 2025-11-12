@@ -152,11 +152,11 @@ app.post('/register', async (req, res) => {
     try {
         const hash = await bcrypt.hash(user_password, 10);
 
-        const result = await db.query(`
-            INSERT INTO public."user" (user_username, user_name, user_email, user_password_hash)
-            VALUES ($1, $2, $3, $4)
-                RETURNING user_id;
-        `, [user_username, user_name, user_email, hash]);
+        // Opción 1: Si usas pg (node-postgres)
+        const result = await db.query(
+            'INSERT INTO public."user" (user_username, user_name, user_email, user_password_hash) VALUES ($1, $2, $3, $4) RETURNING user_id',
+            [user_username, user_name, user_email, hash]
+        );
 
         req.session.userId = result.rows[0].user_id;
         console.log('✅ Usuario registrado:', user_username);
@@ -170,7 +170,6 @@ app.post('/register', async (req, res) => {
         res.redirect('/register');
     }
 });
-
 // GET Login
 app.get('/login', (req, res) => {
     if (req.session.userId) return res.redirect('/');
@@ -312,32 +311,38 @@ app.get('/search_keyword', (req, res) => {
 
 app.get('/buscarpalabras', async (req, res) => {
     const searchTerm = req.query.q;
-    const key = `SELECT DISTINCT ON (m.movie_id) m.movie_id, m.title
-                 FROM movie m
-                     LEFT JOIN movie_keywords mk ON m.movie_id = mk.movie_id
-                     LEFT JOIN keyword k ON mk.keyword_id = k.keyword_id
-                 WHERE k.keyword_name ILIKE $1`;
 
-    const values = [`%${searchTerm}%`];
+    if (!searchTerm) {
+        return res.redirect('/search_keyword');
+    }
+
+    const query = `
+        SELECT DISTINCT ON (m.movie_id)
+            m.movie_id,
+            m.title,
+            m.poster_url,
+            m.vote_average
+        FROM movies.movie m
+            LEFT JOIN movies.movie_keywords mk ON m.movie_id = mk.movie_id
+            LEFT JOIN movies.keyword k ON mk.keyword_id = k.keyword_id
+        WHERE k.keyword_name ILIKE $1
+        ORDER BY m.movie_id
+    `;
+
     try {
-        // Usar db.query que devuelve una promesa y acceder a .rows
-        const keys = await db.query(key,values);
+        const result = await db.query(query, [`%${searchTerm}%`]);
 
-
-
-        // le paso al express de pagina resultado los resultados que voy teniendo
         res.render('resultados_keyword', {
-            keys: keys.rows,
-            searchTerm
+            movies: result.rows,
+            searchTerm,
+            userId: req.session.userId
         });
 
     } catch (err) {
-        console.error(err);
+        console.error('❌ Error en búsqueda por palabras clave:', err);
         res.status(500).send('Error en la búsqueda.');
     }
-
-
-})
+});
 
 app.get('/search_keyword', (req, res) => {
     const searchTerm = req.query.q || '';
